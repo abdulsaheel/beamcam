@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>SYSX</string>
+	<!-- Bump on every extension change. macOS keeps the installed copy when the
+	     version is unchanged, so edits silently do nothing until this moves. -->
+	<key>CFBundleShortVersionString</key>
+	<string>1.1</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>CFBundleDisplayName</key>
+	<string>BeamCam Virtual Camera</string>
+	<key>CMIOExtension</key>
+	<dict>
+		<!-- Team prefix + the EXTENSION's id, matching Xcode's Camera Extension
+		     template. The sandbox rule is that this must be prefixed by one of
+		     the extension's app groups including the trailing dot, so a dotted
+		     child of the group is safer than being exactly equal to it. -->
+		<key>CMIOExtensionMachServiceName</key>
+		<string>$(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>BeamCam publishes a virtual camera fed by your phone.</string>
+	<key>NSSystemExtensionUsageDescription</key>
+	<string>BeamCam installs a virtual camera so your phone can be selected as a video source in any app.</string>
+</dict>
+</plist>
