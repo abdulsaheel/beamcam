@@ -757,22 +757,26 @@ class _SenderPageState extends State<SenderPage> {
 
   /// MUST stay a modal bottom sheet: showDialog crashes the macOS AOT compiler
   /// and this file compiles into the desktop build.
+  /// Selection and dismissal both belong to the group now: RadioListTile's own
+  /// groupValue/onChanged are deprecated in favour of a RadioGroup ancestor.
   Future<T?> _pickOne<T>(
     BuildContext context,
     List<T> options,
-    Widget Function(T value, ValueChanged<T?> onChanged) tile,
+    T current,
+    Widget Function(T value) tile,
   ) => showModalBottomSheet<T>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     builder: (context) => SafeArea(
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final o in options)
-              tile(o, (v) => Navigator.of(context).pop(v)),
-          ],
+        child: RadioGroup<T>(
+          groupValue: current,
+          onChanged: (v) => Navigator.of(context).pop(v),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [for (final o in options) tile(o)],
+          ),
         ),
       ),
     ),
@@ -782,13 +786,12 @@ class _SenderPageState extends State<SenderPage> {
     final picked = await _pickOne<Quality>(
       context,
       Quality.values,
-      (q, onChanged) => RadioListTile<Quality>(
+      _quality,
+      (q) => RadioListTile<Quality>(
         value: q,
-        groupValue: _quality,
         title: Text(q.label),
         subtitle: Text(q.spec),
         secondary: Text(q.note),
-        onChanged: onChanged,
       ),
     );
     if (picked != null && picked != _quality) {
@@ -800,13 +803,12 @@ class _SenderPageState extends State<SenderPage> {
     final picked = await _pickOne<Framing>(
       context,
       Framing.values,
-      (f, onChanged) => RadioListTile<Framing>(
+      _framing,
+      (f) => RadioListTile<Framing>(
         value: f,
-        groupValue: _framing,
         title: Text(f.label),
         subtitle: Text(f.note),
         secondary: Icon(f.icon),
-        onChanged: onChanged,
       ),
     );
     if (picked != null && picked != _framing) await _setFraming(picked);

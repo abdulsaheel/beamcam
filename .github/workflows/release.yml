@@ -134,6 +134,20 @@ jobs:
             > ~/Library/Provisioning\ Profiles/app.provisionprofile
 
       - run: flutter pub get
+
+      # The project signs with "Apple Development" under automatic signing,
+      # which needs an Xcode account and a Mac App Development profile — a
+      # runner has neither, and Developer ID is a different profile type
+      # anyway. Build ad-hoc instead; the Sign step below replaces those
+      # signatures with the real Developer ID ones.
+      - name: Build ad-hoc, sign afterwards
+        if: env.SIGNED == 'true'
+        run: |
+          sed -i '' \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' \
+            -e 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "-";/g' \
+            macos/Runner.xcodeproj/project.pbxproj
+
       - run: flutter build macos --release
 
       # Inside-out: nested code must be sealed before the bundle that contains
