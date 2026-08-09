@@ -1,7 +1,7 @@
 name: beamcam
 description: "Phone-as-webcam: Flutter sender + macOS receiver feeding a CoreMediaIO virtual camera."
 publish_to: 'none'
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: ^3.12.2
