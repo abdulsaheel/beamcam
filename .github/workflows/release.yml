@@ -178,25 +178,52 @@ jobs:
         if: env.SIGNED == 'true'
         run: |
           ID="${{ secrets.MACOS_SIGN_IDENTITY }}"
+
+          # Never hand codesign the raw .entitlements source: it holds Xcode
+          # build variables such as $(TeamIdentifierPrefix), and codesign does
+          # not expand them. It signs the literal string, so the bundle claims
+          # an app group that cannot exist and the extension fails to activate
+          # with "extension category returned error". Reuse what Xcode already
+          # substituted during the build, minus get-task-allow, which
+          # notarization rejects.
+          ents() {
+            codesign -d --entitlements - --xml "$1" 2>/dev/null > "$2"
+            plutil -convert xml1 "$2"
+            plutil -remove com.apple.security.get-task-allow "$2" 2>/dev/null || true
+          }
+
           EXT="$APP/Contents/Library/SystemExtensions"
-          # Re-signing from the entitlements file also drops get-task-allow,
-          # which Xcode injects when signing with a development identity and
-          # which notarization rejects outright.
           for f in "$EXT"/*.systemextension; do
+            ents "$f" "$RUNNER_TEMP/ext.plist"
             codesign --force --timestamp --options runtime \
-              --entitlements macos/CameraExtension/CameraExtension.entitlements \
-              --sign "$ID" "$f"
+              --entitlements "$RUNNER_TEMP/ext.plist" --sign "$ID" "$f"
           done
+
           cp ~/Library/Provisioning\ Profiles/app.provisionprofile \
              "$APP/Contents/embedded.provisionprofile"
           find "$APP/Contents/Frameworks" -name '*.framework' -o -name '*.dylib' \
             | while read -r f; do
                 codesign --force --timestamp --options runtime --sign "$ID" "$f"
               done
+
+          ents "$APP" "$RUNNER_TEMP/app.plist"
           codesign --force --timestamp --options runtime \
-            --entitlements macos/Runner/Release.entitlements \
-            --sign "$ID" "$APP"
+            --entitlements "$RUNNER_TEMP/app.plist" --sign "$ID" "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
+
+      # The bug that shipped in 1.0.0 was invisible until activation on another
+      # machine, so assert it at build time instead.
+      - name: Assert no unexpanded build variables survived
+        if: env.SIGNED == 'true'
+        run: |
+          for b in "$APP" "$APP"/Contents/Library/SystemExtensions/*.systemextension; do
+            if codesign -d --entitlements - --xml "$b" 2>/dev/null | grep -q '\$('; then
+              echo "::error::Unexpanded entitlement variable in $b"
+              codesign -d --entitlements - --xml "$b" 2>/dev/null | grep '\$('
+              exit 1
+            fi
+          done
+          echo "entitlements fully substituted"
 
       # Zip rather than upload the .app directly: a release asset is a single
       # file, and ditto preserves the bundle's symlinks and resource forks.
