@@ -89,7 +89,7 @@ jobs:
 
   macos:
     needs: version
-    runs-on: macos-14
+    runs-on: macos-latest
     # secrets cannot be read inside a step's `if`, so presence is hoisted into
     # env once here. Absent secrets => every signing step no-ops and the job
     # still produces an (unsigned, non-functional) build rather than failing.
@@ -101,6 +101,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+
+      # This project builds through Swift Package Manager, not CocoaPods —
+      # there is no Podfile. flutter_webrtc's Objective-C headers only resolve
+      # FlutterMacOS under a recent Xcode; an older one fails with "no type or
+      # protocol named 'FlutterBinaryMessenger'". Take the newest on the image
+      # rather than whatever xcode-select happens to point at.
+      - name: Select the newest Xcode
+        run: |
+          NEWEST=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$NEWEST"
+          xcodebuild -version
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
