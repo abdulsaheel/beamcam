@@ -36,7 +36,7 @@
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		7E4484503517ED7DF0CF1838 /* CoreMediaIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 538098759D3F67A0058D3BF2 /* CoreMediaIO.framework */; };
 		9DC39D540BD06E9B9C0DB81A /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAF79E932976EED8B1A4CFCC /* CoreVideo.framework */; };
-		CC0483EFD707362972C5352D /* com.jovaristech.beamcam.CameraExtension.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = F6A070337BF67736CB8279CD /* com.jovaristech.beamcam.CameraExtension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC0483EFD707362972C5352D /* com.abdulsaheel.beamcam.CameraExtension.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = F6A070337BF67736CB8279CD /* com.abdulsaheel.beamcam.CameraExtension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CEF5A461135268FF1B5B69F1 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318FB6C5E54E14509DDB92D3 /* main.swift */; };
 		EBEBDD0F5D052609879DBBFF /* CMIOSinkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09972511635490B32496616 /* CMIOSinkClient.swift */; };
 /* End PBXBuildFile section */
@@ -82,7 +82,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Library/SystemExtensions";
 			dstSubfolderSpec = 16;
 			files = (
-				CC0483EFD707362972C5352D /* com.jovaristech.beamcam.CameraExtension.systemextension in Embed System Extensions */,
+				CC0483EFD707362972C5352D /* com.abdulsaheel.beamcam.CameraExtension.systemextension in Embed System Extensions */,
 			);
 			name = "Embed System Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -121,7 +121,7 @@
 		BC8B4CA1C026501911B786AB /* SystemExtensionInstaller.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemExtensionInstaller.swift; sourceTree = "<group>"; };
 		E09972511635490B32496616 /* CMIOSinkClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CMIOSinkClient.swift; sourceTree = "<group>"; };
 		EAF79E932976EED8B1A4CFCC /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
-		F6A070337BF67736CB8279CD /* com.jovaristech.beamcam.CameraExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = com.jovaristech.beamcam.CameraExtension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
+		F6A070337BF67736CB8279CD /* com.abdulsaheel.beamcam.CameraExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = com.abdulsaheel.beamcam.CameraExtension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -191,7 +191,7 @@
 			children = (
 				33CC10ED2044A3C60003C045 /* beamcam.app */,
 				331C80D5294CF71000263BE5 /* RunnerTests.xctest */,
-				F6A070337BF67736CB8279CD /* com.jovaristech.beamcam.CameraExtension.systemextension */,
+				F6A070337BF67736CB8279CD /* com.abdulsaheel.beamcam.CameraExtension.systemextension */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -327,7 +327,7 @@
 			);
 			name = CameraExtension;
 			productName = CameraExtension;
-			productReference = F6A070337BF67736CB8279CD /* com.jovaristech.beamcam.CameraExtension.systemextension */;
+			productReference = F6A070337BF67736CB8279CD /* com.abdulsaheel.beamcam.CameraExtension.systemextension */;
 			productType = "com.apple.product-type.system-extension";
 		};
 /* End PBXNativeTarget section */
@@ -524,7 +524,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/beamcam.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/beamcam";
@@ -538,7 +538,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/beamcam.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/beamcam";
@@ -552,7 +552,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/beamcam.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/beamcam";
@@ -814,9 +814,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam.CameraExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.CameraExtension;
 				PRODUCT_MODULE_NAME = CameraExtension;
-				PRODUCT_NAME = com.jovaristech.beamcam.CameraExtension;
+				PRODUCT_NAME = com.abdulsaheel.beamcam.CameraExtension;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -839,9 +839,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam.CameraExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.CameraExtension;
 				PRODUCT_MODULE_NAME = CameraExtension;
-				PRODUCT_NAME = com.jovaristech.beamcam.CameraExtension;
+				PRODUCT_NAME = com.abdulsaheel.beamcam.CameraExtension;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -865,9 +865,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam.CameraExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.CameraExtension;
 				PRODUCT_MODULE_NAME = CameraExtension;
-				PRODUCT_NAME = com.jovaristech.beamcam.CameraExtension;
+				PRODUCT_NAME = com.abdulsaheel.beamcam.CameraExtension;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;

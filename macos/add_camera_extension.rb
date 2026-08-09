@@ -10,7 +10,7 @@ require 'xcodeproj'
 
 PROJECT   = File.join(__dir__, 'Runner.xcodeproj')
 EXT_NAME  = 'CameraExtension'
-EXT_ID    = 'com.jovaristech.beamcam.CameraExtension'
+EXT_ID    = 'com.abdulsaheel.beamcam.CameraExtension'
 TEAM      = '2U62X3RF3R'
 DEPLOY    = '13.0' # CMIOExtension needs 12.3+; 13.0 keeps the API surface simple
 

@@ -17,9 +17,9 @@
 	<!-- Bump on every extension change. macOS keeps the installed copy when the
 	     version is unchanged, so edits silently do nothing until this moves. -->
 	<key>CFBundleShortVersionString</key>
-	<string>1.1</string>
+	<string>1.8</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>10</string>
 	<key>CFBundleDisplayName</key>
 	<string>BeamCam Virtual Camera</string>
 	<key>CMIOExtension</key>

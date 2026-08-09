@@ -4,14 +4,12 @@ import CoreMediaIO
 import CoreVideo
 import Foundation
 
-/// Appends to the same file SystemExtensionInstaller writes, so a single
-/// `cat ~/Library/Group Containers/.../beamcam-extension.log` shows the whole
-/// story: install → activation → sink discovery → frame pushes.
 enum BeamCamLog {
+
 
     private static let url: URL = {
         let base = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "2U62X3RF3R.com.jovaristech.beamcam")
+            forSecurityApplicationGroupIdentifier: "2U62X3RF3R.com.abdulsaheel.beamcam")
             ?? FileManager.default.temporaryDirectory
         return base.appendingPathComponent("beamcam-extension.log")
     }()
@@ -36,18 +34,10 @@ enum BeamCamLog {
 /// Pushes CVPixelBuffers into the camera extension's sink stream over the
 /// CoreMediaIO DAL (`CMIO*` C API).
 ///
-/// The sequence, and why each step is here:
+/// The two traps worth knowing before reading the rest:
 ///
-///   1. `kCMIOHardwarePropertyAllowScreenCaptureDevices = 1` on
-///      `kCMIOObjectSystemObject`. Without it the DAL hides virtual /
-///      system-extension devices from this process' `kCMIOHardwarePropertyDevices`
-///      enumeration and discovery silently finds nothing.
-///   2. `kCMIOHardwarePropertyDevices` → every `CMIODeviceID`; match ours on
-///      `kCMIOObjectPropertyName` == "BeamCam" (falling back to the AVFoundation
-///      unique ID against `kCMIODevicePropertyDeviceUID`).
-///   3. `kCMIODevicePropertyStreams` → the device's `CMIOStreamID`s. Pick the
-///      sink by **name** ("BeamCam.Sink"), then by add order (the extension does
-///      `addStream(source)` then `addStream(sink)`), and only then by
+///   1. `kCMIODevicePropertyStreams` → the device's `CMIOStreamID`s. Pick the
+///      sink by **name** ("BeamCam.Sink"), never by
 ///      `kCMIOStreamPropertyDirection`. Direction is a trap: measured on this
 ///      device, "BeamCam.Video" (the source) reports direction=1 and
 ///      "BeamCam.Sink" reports direction=0, i.e. the header's "0 means output"
@@ -55,20 +45,9 @@ enum BeamCamLog {
 ///      by mistake makes the very first enqueue return -12773
 ///      (kCMSimpleQueueError_QueueIsFull) forever, with the extension never
 ///      seeing a frame.
-///   4. `CMIOStreamCopyBufferQueue(sinkStreamID, alteredProc, refCon, &queue)` —
-///      the returned `CMSimpleQueue` is what we enqueue into, and `alteredProc`
-///      fires once cmiod has handed a buffer on to the extension.
-///   5. `CMIODeviceStartStream(deviceID, sinkStreamID)` — this is what triggers
+///   2. `CMIODeviceStartStream(deviceID, sinkStreamID)` — this is what triggers
 ///      `startStream()` (and therefore `consumeSampleBuffer`) on the extension's
 ///      sink. Enqueueing without it fills the queue and delivers nothing.
-///   6. Per frame: `CMSampleBufferCreateForImageBuffer` + `CMSimpleQueueEnqueue`,
-///      gated on the alteredProc ack and on `CMSimpleQueueGetCount < GetCapacity`.
-///
-/// Sources: Apple's "Creating a camera extension with Core Media I/O" sample,
-/// the ldenoue/cameraextension port of it (initSink / getCMIODevice /
-/// getInputStreams / enqueue), and the CarGuo/iOS-Simulator-Camera-Extend
-/// CMIOSinkClient, whose CMIO-LESSONS-LEARNED.md documents the
-/// direction-vs-name and missing-ack failure modes above.
 final class CMIOSinkClient {
 
     private let lock = NSLock()
@@ -96,12 +75,6 @@ final class CMIOSinkClient {
 
     /// The device's localized name as published by BeamCamProvider.
     private let deviceName = "BeamCam"
-
-    var isConnected: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return sinkQueue != nil
-    }
 
     // MARK: - Lifecycle
 
@@ -440,8 +413,6 @@ final class CMIOSinkClient {
         else { return nil }
 
         var byName: CMIOStreamID?
-        var byOrder: CMIOStreamID?
-        var byDirection: CMIOStreamID?
 
         for (index, stream) in streams.enumerated() {
             let name = stringProperty(
@@ -458,20 +429,9 @@ final class CMIOSinkClient {
             if byName == nil, name.range(of: "sink", options: .caseInsensitive) != nil {
                 byName = stream
             }
-            // BeamCamProvider adds the source stream first and the sink second.
-            if index == 1, byOrder == nil {
-                byOrder = stream
-            }
-            // Client-relative: the stream we write *out* to. Measured as 0 on
-            // this device; only ever consulted if both heuristics above miss.
-            if byDirection == nil, direction == 0 {
-                byDirection = stream
-            }
         }
 
-        if let byName { return byName }
-        if let byOrder { return byOrder }
-        return byDirection
+        return byName
     }
 
     private func copyBufferQueue(streamID: CMIOStreamID) -> CMSimpleQueue? {

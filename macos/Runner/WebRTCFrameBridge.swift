@@ -6,7 +6,8 @@ import WebRTC
 import flutter_webrtc
 
 /// Taps the remote WebRTC video track as a plain `RTCVideoRenderer`, normalises
-/// every frame to the extension's format (32BGRA, 1280x720, upright), and hands
+/// every frame to the extension's format (32BGRA, the extension's fixed frame
+/// size, upright), and hands
 /// it to `CMIOSinkClient`.
 ///
 /// Two frame-buffer shapes arrive in practice:
@@ -24,6 +25,18 @@ final class WebRTCFrameBridge: NSObject, RTCVideoRenderer {
     private static let outputWidth = 1920
     private static let outputHeight = 1080
 
+
+    private var mirror = false
+    private var flip = false
+
+    func setTransform(mirror: Bool, flip: Bool) {
+        stateLock.lock()
+        self.mirror = mirror
+        self.flip = flip
+        stateLock.unlock()
+        BeamCamLog.write("bridge: transform mirror=\(mirror) flip=\(flip)")
+    }
+
     private let sink = CMIOSinkClient()
     private let convertQueue = DispatchQueue(label: "beamcam.frames", qos: .userInitiated)
 
@@ -33,7 +46,6 @@ final class WebRTCFrameBridge: NSObject, RTCVideoRenderer {
     private var scratchSize: (Int, Int) = (0, 0)
 
     private var track: RTCVideoTrack?
-    private var trackId: String?
     private var converting = false
     private let stateLock = NSLock()
 
@@ -61,11 +73,6 @@ final class WebRTCFrameBridge: NSObject, RTCVideoRenderer {
 
     // MARK: - Control
 
-    /// Opens the sink at launch rather than on first frame. Finding the device
-    /// costs a DAL round trip and the extension may not even be installed yet,
-    /// so doing it up front means the first phone frame goes straight out.
-    /// The extension keeps showing its placeholder until frames actually arrive,
-    /// so an idle-but-connected sink is harmless.
     func prepare() {
         sink.start()
     }
@@ -92,7 +99,6 @@ final class WebRTCFrameBridge: NSObject, RTCVideoRenderer {
 
         stateLock.lock()
         track = videoTrack
-        self.trackId = trackId
         stateLock.unlock()
 
         videoTrack.add(self)
@@ -105,7 +111,6 @@ final class WebRTCFrameBridge: NSObject, RTCVideoRenderer {
         stateLock.lock()
         let attached = track
         track = nil
-        trackId = nil
         stateLock.unlock()
 
         // The CMIO connection stays up; only the frame source goes away. The
@@ -150,6 +155,27 @@ final class WebRTCFrameBridge: NSObject, RTCVideoRenderer {
         guard var image = sourceImage(for: frame) else { return nil }
 
         image = image.oriented(orientation(for: frame.rotation))
+
+        stateLock.lock()
+        let wantMirror = mirror
+        let wantFlip = flip
+        stateLock.unlock()
+
+        if wantMirror || wantFlip {
+            // Core Image's origin is bottom-left, so a vertical flip is a
+            // negative Y scale; each negated axis needs a matching translation
+            // to bring the image back into positive extent.
+            let extent = image.extent
+            var transform = CGAffineTransform.identity
+            transform = transform.translatedBy(
+                x: wantMirror ? extent.width : 0,
+                y: wantFlip ? extent.height : 0)
+            transform = transform.scaledBy(
+                x: wantMirror ? -1 : 1,
+                y: wantFlip ? -1 : 1)
+            image = image.transformed(by: transform)
+        }
+
         image = image.transformed(
             by: CGAffineTransform(translationX: -image.extent.origin.x,
                                   y: -image.extent.origin.y))

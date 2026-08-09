@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.jovaristech.beamcam"
+    namespace = "com.abdulsaheel.beamcam"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,12 +15,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.jovaristech.beamcam"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // flutter_webrtc needs 23+; the target device is API 30.
-        minSdk = maxOf(flutter.minSdkVersion, 23)
+        applicationId = "com.abdulsaheel.beamcam"
+        // flutter_webrtc requires API 23+; Flutter's own floor is already above it.
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

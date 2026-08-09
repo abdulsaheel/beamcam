@@ -8,7 +8,7 @@
 PRODUCT_NAME = beamcam
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.jovaristech.beamcam
+PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.jovaristech. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Abdul Sahil. All rights reserved.

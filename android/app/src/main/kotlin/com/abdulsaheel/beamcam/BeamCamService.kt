@@ -1,4 +1,4 @@
-package com.jovaristech.beamcam
+package com.abdulsaheel.beamcam
 
 import android.app.Notification
 import android.app.NotificationChannel

@@ -1,4 +1,4 @@
-package com.jovaristech.beamcam
+package com.abdulsaheel.beamcam
 
 import com.cloudwebrtc.webrtc.FlutterWebRTCPlugin
 import com.cloudwebrtc.webrtc.video.LocalVideoTrack
@@ -34,9 +34,7 @@ object RotationPinner {
             val target = pinned ?: frame.rotation.also { pinned = it }
             if (target == frame.rotation) return frame
 
-            // Borrowed, not retained: the capturer still owns the buffer and
-            // VideoSink.onFrame does not take ownership, so this wrapper must
-            // not release it.
+
             return VideoFrame(frame.buffer, target, frame.timestampNs)
         }
     }

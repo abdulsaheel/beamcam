@@ -1,22 +1,17 @@
 import Foundation
 import CoreMediaIO
+import CoreText
 import IOKit.audio
 import CoreImage
 import os.log
 
 let kFrameRate: Int32 = 30
-// The virtual camera publishes a single fixed format, so this is the ceiling for
-// the whole pipeline regardless of what the phone sends. 1080p is the highest
-// resolution every consumer (Meet, Zoom, FaceTime, Brave) handles without
-// negotiation trouble; lower phone resolutions are letterboxed up by the bridge.
-// Raising this requires reinstalling the extension.
 let kWidth: Int32 = 1920
 let kHeight: Int32 = 1080
 
-/// Name shown in Brave, Meet, FaceTime, and every other camera picker.
 let kDeviceName = "BeamCam"
 
-// MARK: - Provider
+
 
 class BeamCamProviderSource: NSObject, CMIOExtensionProviderSource {
 
@@ -81,6 +76,7 @@ class BeamCamDeviceSource: NSObject, CMIOExtensionDeviceSource {
 
     init(localizedName: String) {
         super.init()
+
 
         let deviceID = UUID()
         device = CMIOExtensionDevice(
@@ -246,8 +242,6 @@ class BeamCamDeviceSource: NSObject, CMIOExtensionDeviceSource {
                 timingInfo.presentationTimeStamp.seconds * Double(NSEC_PER_SEC)))
     }
 
-    /// A dark frame with a moving accent bar: proves the pipeline is alive and
-    /// makes it obvious at a glance that no phone is connected yet.
     private func drawPlaceholder(into pixelBuffer: CVPixelBuffer) {
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
@@ -255,14 +249,13 @@ class BeamCamDeviceSource: NSObject, CMIOExtensionDeviceSource {
         guard let base = CVPixelBufferGetBaseAddress(pixelBuffer) else { return }
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
 
         guard let context = CGContext(
             data: base,
             width: width,
             height: height,
             bitsPerComponent: 8,
-            bytesPerRow: bytesPerRow,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: UInt32(CGImageAlphaInfo.premultipliedFirst.rawValue)
                 | UInt32(CGBitmapInfo.byteOrder32Little.rawValue))
@@ -271,15 +264,36 @@ class BeamCamDeviceSource: NSObject, CMIOExtensionDeviceSource {
         context.setFillColor(CGColor(red: 0.05, green: 0.06, blue: 0.09, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
-        let phase = Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 3.0) / 3.0
-        let barWidth = Double(width) * 0.18
-        let x = phase * (Double(width) + barWidth) - barWidth
-        context.setFillColor(CGColor(red: 0.31, green: 0.55, blue: 1.0, alpha: 1))
-        context.fill(CGRect(
-            x: x,
-            y: Double(height) * 0.48,
-            width: barWidth,
-            height: Double(height) * 0.04))
+        let midX = Double(width) / 2
+        let midY = Double(height) / 2
+
+        draw("No phone connected", in: context,
+             centredAt: CGPoint(x: midX, y: midY),
+             size: Double(height) * 0.06, alpha: 0.9)
+
+        draw("Open BeamCam on your phone and pick this computer",
+             in: context,
+             centredAt: CGPoint(x: midX, y: midY - Double(height) * 0.07),
+             size: Double(height) * 0.032, alpha: 0.5)
+    }
+
+    private func draw(
+        _ text: String, in context: CGContext,
+        centredAt point: CGPoint, size: Double, alpha: Double
+    ) {
+        let font = CTFontCreateWithName("Helvetica" as CFString, size, nil)
+        let line = CTLineCreateWithAttributedString(NSAttributedString(
+            string: text,
+            // CoreText's own attribute names: .font/.foregroundColor come from
+            // AppKit, which this extension does not link.
+            attributes: [
+                NSAttributedString.Key(kCTFontAttributeName as String): font,
+                NSAttributedString.Key(kCTForegroundColorAttributeName as String):
+                    CGColor(gray: 1, alpha: alpha),
+            ]))
+        let bounds = CTLineGetBoundsWithOptions(line, [])
+        context.textPosition = CGPoint(x: point.x - bounds.width / 2, y: point.y)
+        CTLineDraw(line, context)
     }
 }
 
