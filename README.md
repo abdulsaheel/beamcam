@@ -36,18 +36,6 @@ serves the phone's live feed at 1280×720/30fps. The placeholder (dark frame,
 moving blue bar) now appears only when no frame has arrived for 2 seconds — i.e.
 when the phone is disconnected.
 
-### The CMIO sink trap
-
-`kCMIOStreamPropertyDirection` is **not** a reliable way to find the sink stream.
-Measured on this device, the *source* stream reports `direction=1` and the *sink*
-reports `direction=0` — the header's "0 means output" is relative to the client,
-not the extension. Matching on `direction == 1` selects the source stream, and
-every enqueue then fails with `-12773 kCMSimpleQueueError_QueueIsFull` forever
-while the extension never sees a frame. `CMIOSinkClient` matches by stream name
-first for this reason.
-
-Also required before enumeration, or the DAL hides system-extension cameras from
-the process entirely:
 
 ```swift
 CMIOObjectSetPropertyData(kCMIOObjectSystemObject,
@@ -85,23 +73,6 @@ gathering latency.
 | `android/.../BeamCamService.kt` | Opt-in foreground service for background capture |
 | `macos/CameraExtension/` | CoreMediaIO provider, device, source + sink streams |
 | `macos/add_camera_extension.rb` | Recreates the extension target in the Xcode project |
-
-### showDialog breaks the macOS AOT build
-
-`showDialog` anywhere in code reachable from the macOS build fails the release
-compile with:
-
-```
-Unexpected object (Class with illegal cid, full-aot):
-Library:'package:flutter/src/widgets/_window_macos.dart' Class: _Rect
-Dart snapshot generator failed with exit code -6
-```
-
-`showMenu` and `showModalBottomSheet` are fine — only `showDialog`. This bites
-even in phone-only screens, because `main.dart` imports both pages, so
-`sender_page.dart` and everything it reaches is compiled into the macOS binary
-regardless of which page ever runs. Use an inline field or a pushed route
-instead. Bisected against Flutter 3.44.9.
 
 
 ## To do
