@@ -186,10 +186,18 @@ jobs:
           # with "extension category returned error". Reuse what Xcode already
           # substituted during the build, minus get-task-allow, which
           # notarization rejects.
+          # PlistBuddy, not plutil: plutil -remove reads dots as key-path
+          # separators, so it never matches a key literally named
+          # com.apple.security.get-task-allow and notarization then rejects the
+          # build. PlistBuddy takes the key as written.
           ents() {
             codesign -d --entitlements - --xml "$1" 2>/dev/null > "$2"
             plutil -convert xml1 "$2"
-            plutil -remove com.apple.security.get-task-allow "$2" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c \
+              "Delete :com.apple.security.get-task-allow" "$2" 2>/dev/null || true
+            if grep -q get-task-allow "$2"; then
+              echo "::error::get-task-allow survived in $2"; exit 1
+            fi
           }
 
           EXT="$APP/Contents/Library/SystemExtensions"
@@ -211,19 +219,25 @@ jobs:
             --entitlements "$RUNNER_TEMP/app.plist" --sign "$ID" "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
 
-      # The bug that shipped in 1.0.0 was invisible until activation on another
-      # machine, so assert it at build time instead.
-      - name: Assert no unexpanded build variables survived
+      # 1.0.0 shipped unexpanded build variables and 1.0.1 shipped
+      # get-task-allow. Both were invisible until something else rejected them
+      # — one at activation on another machine, one at notarization, minutes
+      # into the job. Assert both here, on the signed bundles, immediately.
+      - name: Assert the signed entitlements are shippable
         if: env.SIGNED == 'true'
         run: |
+          fail=0
           for b in "$APP" "$APP"/Contents/Library/SystemExtensions/*.systemextension; do
-            if codesign -d --entitlements - --xml "$b" 2>/dev/null | grep -q '\$('; then
-              echo "::error::Unexpanded entitlement variable in $b"
-              codesign -d --entitlements - --xml "$b" 2>/dev/null | grep '\$('
-              exit 1
+            e=$(codesign -d --entitlements - --xml "$b" 2>/dev/null)
+            if grep -q '\$(' <<<"$e"; then
+              echo "::error::Unexpanded entitlement variable in $b"; fail=1
+            fi
+            if grep -q 'get-task-allow' <<<"$e"; then
+              echo "::error::get-task-allow present in $b — notarization will reject"; fail=1
             fi
           done
-          echo "entitlements fully substituted"
+          [ "$fail" = 0 ] || exit 1
+          echo "entitlements substituted, no get-task-allow"
 
       # Zip rather than upload the .app directly: a release asset is a single
       # file, and ditto preserves the bundle's symlinks and resource forks.
