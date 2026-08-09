@@ -1,3 +1,5 @@
+<img src="assets/logo-readme.png" alt="BeamCam" width="120" align="right">
+
 # BeamCam
 
 Use an Android phone as a webcam on macOS. One Flutter codebase, two roles: the
@@ -52,36 +54,6 @@ CMIOObjectSetPropertyData(kCMIOObjectSystemObject,
                           kCMIOHardwarePropertyAllowScreenCaptureDevices = 1)
 ```
 
-## The naming rule that cost a day
-
-A system extension bundle **must be filed under its own bundle identifier**:
-
-```
-Contents/Library/SystemExtensions/<CFBundleIdentifier>.systemextension
-```
-
-`sysextd` builds that path from the identifier and never scans the directory, so
-`CameraExtension.systemextension` holding id
-`com.jovaristech.beamcam.CameraExtension` failed with `OSSystemExtensionError`
-code 4, "Extension not found in App bundle". Xcode's
-`com.apple.product-type.system-extension` sets `PRODUCT_NAME =
-$(PRODUCT_BUNDLE_IDENTIFIER)` for exactly this reason;
-`add_camera_extension.rb` originally overrode it. Apple documents the rule in
-the System Extensions Overview and a DTS engineer confirms it in
-[forum thread 823200](https://developer.apple.com/forums/thread/823200).
-
-Because `PRODUCT_NAME` then contains dots, `PRODUCT_MODULE_NAME` must be pinned
-separately — dots are illegal in a Swift module name.
-
-**`no policy, cannot allow apps outside /Applications` is a red herring.** It is
-an unconditional "no MDM policy installed" trace; a *successful* activation logs
-it too. The real location error is a different string with error code 3. Do not
-debug against it.
-
-**Developer ID system extensions must be notarized.** An unnotarized Developer
-ID build fails with `code signature invalid` at `waiting for external
-validation`. Apple Development signing skips notarization entirely and is the
-correct choice for development.
 
 ## Architecture
 
@@ -131,50 +103,24 @@ even in phone-only screens, because `main.dart` imports both pages, so
 regardless of which page ever runs. Use an inline field or a pushed route
 instead. Bisected against Flutter 3.44.9.
 
-## Things that cost hours
 
-- **`log` is shadowed by a shell function in zsh.** Every `log show` silently
-  returned nothing, which looked like "logging is unavailable" and hid the real
-  sysextd error for a long time. Use `/usr/bin/log`.
-- **Gradle's wrapper download hangs from the JVM** while `curl` fetches the same
-  URL fine — an IPv6 route that black-holes for Java. Seed the distribution into
-  `~/.gradle/wrapper/dists` by hand and set
-  `GRADLE_OPTS=-Djava.net.preferIPv4Stack=true`.
-- **`flutter build macos` cannot pass `-allowProvisioningUpdates`.** Profiles
-  have to be created by a `xcodebuild -scheme` run first. Raw `xcodebuild
-  -target` fails outright because it skips Flutter's module-map codegen.
-- **Register the Mac as a device** or no Mac App Development profile can be
-  generated: `xcodebuild -allowProvisioningDeviceRegistration`.
-- **The method channel must bind to the FlutterViewController's engine**
-  (`MainFlutterWindow`), not to anything reachable from
-  `applicationDidFinishLaunching` — otherwise every call is a
-  `MissingPluginException`.
-- **`os_log` never reaches stderr.** Use `NSLog`, or write to a file in the app
-  group container, when debugging a LaunchServices-started app.
-- **`org.webrtc.*` is not on the app module's classpath.** flutter_webrtc
-  declares it `implementation`, so `RotationPinner` needs its own `compileOnly`
-  dependency at a matching version.
-- **`adb` lists the phone twice** (mDNS + IP), so bare `adb install` fails with
-  "more than one device". Pin with `-s`.
-- Camera rotation follows **display rotation**, not the activity's requested
-  orientation — which is why backgrounding flipped the stream to portrait until
-  `RotationPinner` latched it.
+## To do
 
-## Running it
-
-```sh
-export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17
-export GRADLE_OPTS="-Djava.net.preferIPv4Stack=true"
-
-flutter build apk --release
-adb -s <serial> install -r build/app/outputs/flutter-apk/app-release.apk
-
-flutter build macos --release   # needs full Xcode
-```
-
-The Mac app prints its LAN addresses while waiting; type one into the phone.
+- [ ] **iOS sender.** Worth a lot against a Windows receiver.
+- [ ] **Windows receiver.** Needs a Media Foundation camera; CoreMediaIO is Apple-only.
+- [ ] **More quality options.** 1440p, and a manual bitrate override.
+- [ ] **Microphone relaying.** Needs a virtual audio device, separate from the camera.
 
 ## License
 
-MIT.
+GPL-3.0. See [LICENSE](LICENSE).
+
+Use it however you like — the licence only has anything to
+say when you *distribute*. Ship a modified version to anyone else and you have
+to ship its source too, under the same licence. That is deliberate: the point is
+that the CoreMediaIO work here cannot be quietly absorbed into a closed product.
+
+Contributions are accepted under GPL-3.0 plus a maintainer relicensing grant,
+so that app-store distribution — which GPL-3.0 terms forbid — stays possible
+for the project's own releases. That grant is to the maintainer alone and
+extends to nobody else. See [CONTRIBUTING.md](CONTRIBUTING.md).
