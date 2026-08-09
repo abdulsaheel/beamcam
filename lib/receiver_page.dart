@@ -7,6 +7,8 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:nsd/nsd.dart' as nsd;
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'about.dart';
+import 'main.dart';
 import 'pairing.dart';
 import 'signaling.dart';
 
@@ -32,15 +34,14 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
   String _status = 'Starting…';
   bool _hasVideo = false;
-  List<String> _addresses = const [];
   String _extensionStatus = 'idle';
   String _sinkStatus = 'idle';
 
-  /// Off by default: this window is a background utility once the virtual
-  /// camera is live, and rendering a second copy of the video costs GPU for
-  /// nothing. The native bridge feeds the extension directly, so the preview
-  /// is purely cosmetic and safe to detach.
+  /// Off by default: the native bridge feeds the extension directly, so
+  /// rendering a second copy costs GPU for nothing.
   bool _showPreview = false;
+  bool _mirror = false;
+  bool _flip = false;
   MediaStream? _remoteStream;
 
   nsd.Registration? _registration;
@@ -48,10 +49,7 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
   /// Once macOS reports the extension installed there is nothing left to do,
   /// so the button retires rather than inviting a pointless reinstall.
-  bool get _extensionReady =>
-      _extensionStatus.toLowerCase().contains('install') &&
-      !_extensionStatus.toLowerCase().contains('requesting') &&
-      !_extensionStatus.toLowerCase().contains('awaiting');
+  bool get _extensionReady => _extensionStatus.startsWith('installed');
 
   @override
   void initState() {
@@ -128,21 +126,23 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
   Future<void> _boot() async {
     await _renderer.initialize();
-    await _listAddresses();
+    final host = await _listAddresses();
     await _serve();
-    await _publish();
+    await _publish(host);
   }
 
   /// Announces this Mac two ways at once. Bonjour covers the common case where
   /// the phone can just find it; the QR carries the same payload for networks
   /// that block multicast, where discovery silently returns nothing.
-  Future<void> _publish() async {
-    final host = _addresses.isEmpty ? null : _addresses.first;
+  Future<void> _publish(String? host) async {
     if (host == null) return;
 
     final name = Platform.localHostname.replaceAll('.local', '');
     final payload = PairingPayload(host: host, port: kSignalPort, name: name);
     if (mounted) setState(() => _payload = payload);
+    _sinkChannel
+        .invokeMethod('setPairing', {'uri': payload.encode()})
+        .catchError((_) {});
 
     try {
       _registration = await nsd.register(
@@ -155,18 +155,17 @@ class _ReceiverPageState extends State<ReceiverPage> {
     }
   }
 
-  Future<void> _listAddresses() async {
+  Future<String?> _listAddresses() async {
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
       includeLoopback: false,
     );
-    if (!mounted) return;
-    setState(() {
-      _addresses = [
-        for (final i in interfaces)
-          for (final a in i.addresses) a.address,
-      ];
-    });
+    for (final i in interfaces) {
+      for (final a in i.addresses) {
+        return a.address;
+      }
+    }
+    return null;
   }
 
   Future<void> _serve() async {
@@ -189,8 +188,7 @@ class _ReceiverPageState extends State<ReceiverPage> {
         _attach(socket);
       });
     } on SocketException catch (e) {
-      // Almost always the macOS sandbox missing com.apple.security.network.server,
-      // or a stale instance still holding the port.
+
       _set('Cannot bind port $kSignalPort — $e');
     }
   }
@@ -219,14 +217,15 @@ class _ReceiverPageState extends State<ReceiverPage> {
     switch (signal.type) {
       case 'offer':
         await _answer(socket, signal);
+      case 'transform':
+        final mirror = signal.data['mirror'] ?? false;
+        final flip = signal.data['flip'] ?? false;
+        if (mounted) setState(() { _mirror = mirror; _flip = flip; });
+        await _sinkChannel
+            .invokeMethod('setTransform', {'mirror': mirror, 'flip': flip})
+            .catchError((_) {});
       case 'ice':
-        await _pc?.addCandidate(
-          RTCIceCandidate(
-            signal.data['candidate'] as String?,
-            signal.data['sdpMid'] as String?,
-            signal.data['sdpMLineIndex'] as int?,
-          ),
-        );
+        await _pc?.addCandidate(signal.toCandidate());
       default:
         break;
     }
@@ -238,13 +237,7 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
     pc.onIceCandidate = (candidate) {
       if (candidate.candidate == null) return;
-      socket.add(
-        Signal('ice', {
-          'candidate': candidate.candidate,
-          'sdpMid': candidate.sdpMid,
-          'sdpMLineIndex': candidate.sdpMLineIndex,
-        }).encode(),
-      );
+      socket.add(Signal.ice(candidate).encode());
     };
 
     pc.onTrack = (event) {
@@ -309,6 +302,34 @@ class _ReceiverPageState extends State<ReceiverPage> {
                 ],
               ),
             ),
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeMode,
+            builder: (context, mode, _) => PopupMenuButton<ThemeMode>(
+              icon: Icon(mode.icon),
+              tooltip: 'Appearance',
+              initialValue: mode,
+              onSelected: (m) => unawaited(setThemeMode(m)),
+              itemBuilder: (context) => [
+                for (final m in ThemeMode.values)
+                  PopupMenuItem(
+                    value: m,
+                    child: Row(
+                      children: [
+                        Icon(m.icon, size: 18),
+                        const SizedBox(width: 12),
+                        Text(m.label),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => unawaited(showAboutSheet(context)),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _hasVideo ? _liveBody(context) : _waitingBody(context),
@@ -338,10 +359,14 @@ class _ReceiverPageState extends State<ReceiverPage> {
                       aspectRatio: 16 / 9,
                       child: ColoredBox(
                         color: Colors.black,
-                        child: RTCVideoView(
-                          _renderer,
-                          objectFit: RTCVideoViewObjectFit
-                              .RTCVideoViewObjectFitContain,
+                        child: Transform.scale(
+                          scaleX: _mirror ? -1 : 1,
+                          scaleY: _flip ? -1 : 1,
+                          child: RTCVideoView(
+                            _renderer,
+                            objectFit: RTCVideoViewObjectFit
+                                .RTCVideoViewObjectFitContain,
+                          ),
                         ),
                       ),
                     ),
@@ -419,6 +444,8 @@ class _ReceiverPageState extends State<ReceiverPage> {
                   ],
                 ),
               ),
+              const SizedBox(height: 28),
+              const AboutFooter(),
             ],
           ),
         ),
@@ -427,8 +454,7 @@ class _ReceiverPageState extends State<ReceiverPage> {
   }
 }
 
-/// The pairing code and the address behind it. Plain Material: a card, a code,
-/// and the two lines of text that explain what to do with it.
+/// The pairing code and the address behind it.
 class _PairingCard extends StatelessWidget {
   const _PairingCard({required this.payload, required this.status});
 
@@ -444,6 +470,7 @@ class _PairingCard extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
+            const SizedBox(height: 16),
             Text('Connect your phone', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(

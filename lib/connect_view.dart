@@ -1,25 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'about.dart';
 import 'device_discovery.dart';
+import 'main.dart';
 import 'pairing.dart';
-import 'scan_screen.dart';
 import 'signaling.dart';
 
-/// Loopback, reached over `adb reverse`. A developer convenience only: it needs
-/// USB debugging turned on, which no ordinary user has, so it never appears
-/// until someone asks for it from the overflow menu.
+/// Loopback, reached over `adb reverse`. Developer-only: it needs USB
+/// debugging, so it stays hidden until asked for from the overflow menu.
 const String kUsbHost = '127.0.0.1';
 
 PairingPayload get kUsbTarget =>
     const PairingPayload(host: kUsbHost, port: kSignalPort, name: 'USB cable');
 
-enum _Overflow { rescan, usb, forgetAll }
+enum _Overflow { rescan, usb, forgetAll, about }
 
-/// The list of computers this phone can stream to.
-///
-/// Saved ones first so a returning user taps once. Everything is a stock
-/// [ListTile] inside a [Card]; there is no bespoke row widget, because a
-/// computer in a list is exactly what Material already draws well.
 class ConnectView extends StatefulWidget {
   const ConnectView({
     super.key,
@@ -27,7 +24,6 @@ class ConnectView extends StatefulWidget {
     required this.onConnect,
     required this.onForget,
     required this.onForgetAll,
-    this.busyHost,
     this.error,
   });
 
@@ -35,10 +31,6 @@ class ConnectView extends StatefulWidget {
   final ValueChanged<PairingPayload> onConnect;
   final ValueChanged<PairingPayload> onForget;
   final VoidCallback onForgetAll;
-
-  /// Host currently being dialled, so its row can show progress instead of the
-  /// whole screen blocking.
-  final String? busyHost;
   final String? error;
 
   @override
@@ -69,13 +61,6 @@ class _ConnectViewState extends State<ConnectView> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _scan() async {
-    final payload = await Navigator.of(context).push<PairingPayload>(
-      MaterialPageRoute(builder: (_) => const ScanScreen()),
-    );
-    if (payload != null && mounted) widget.onConnect(payload);
-  }
-
   void _submitAddress() {
     final payload = PairingPayload.tryParse(_address.text);
     if (payload == null) return;
@@ -99,6 +84,28 @@ class _ConnectViewState extends State<ConnectView> {
       appBar: AppBar(
         title: const Text('BeamCam'),
         actions: [
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeMode,
+            builder: (context, mode, _) => PopupMenuButton<ThemeMode>(
+              icon: Icon(mode.icon),
+              tooltip: 'Appearance',
+              initialValue: mode,
+              onSelected: (m) => unawaited(setThemeMode(m)),
+              itemBuilder: (context) => [
+                for (final m in ThemeMode.values)
+                  PopupMenuItem(
+                    value: m,
+                    child: Row(
+                      children: [
+                        Icon(m.icon, size: 18),
+                        const SizedBox(width: 12),
+                        Text(m.label),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
           PopupMenuButton<_Overflow>(
             onSelected: (choice) {
               switch (choice) {
@@ -108,6 +115,8 @@ class _ConnectViewState extends State<ConnectView> {
                   setState(() => _showUsb = !_showUsb);
                 case _Overflow.forgetAll:
                   widget.onForgetAll();
+                case _Overflow.about:
+                  unawaited(showAboutSheet(context));
               }
             },
             itemBuilder: (context) => [
@@ -124,6 +133,10 @@ class _ConnectViewState extends State<ConnectView> {
                   value: _Overflow.forgetAll,
                   child: Text('Forget all computers'),
                 ),
+              const PopupMenuItem(
+                value: _Overflow.about,
+                child: Text('About BeamCam'),
+              ),
             ],
           ),
         ],
@@ -156,8 +169,6 @@ class _ConnectViewState extends State<ConnectView> {
                   for (final device in widget.saved)
                     _DeviceTile(
                       device: device,
-                      icon: Icons.computer,
-                      busy: widget.busyHost == device.host,
                       onTap: () => widget.onConnect(device),
                       onForget: () => widget.onForget(device),
                     ),
@@ -193,8 +204,6 @@ class _ConnectViewState extends State<ConnectView> {
                       for (final device in fresh)
                         _DeviceTile(
                           device: device,
-                          icon: Icons.computer_outlined,
-                          busy: widget.busyHost == device.host,
                           onTap: () => widget.onConnect(device),
                         ),
                     ],
@@ -206,14 +215,13 @@ class _ConnectViewState extends State<ConnectView> {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.qr_code_2),
-                  title: const Text('Scan the code on your computer'),
-                  subtitle: const Text(
-                    'Opens the camera to read the code in the BeamCam window.',
+                const ListTile(
+                  leading: Icon(Icons.qr_code_2),
+                  title: Text('Scan the code with your camera'),
+                  subtitle: Text(
+                    'Point your phone camera at the QR code in the BeamCam '
+                    'window, then tap the link it offers.',
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _scan,
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 Padding(
@@ -257,6 +265,8 @@ class _ConnectViewState extends State<ConnectView> {
               ],
             ),
           ),
+          const SizedBox(height: 28),
+          const AboutFooter(),
         ],
       ),
     );
@@ -284,40 +294,26 @@ class _Header extends StatelessWidget {
 }
 
 class _DeviceTile extends StatelessWidget {
-  const _DeviceTile({
-    required this.device,
-    required this.icon,
-    required this.busy,
-    required this.onTap,
-    this.onForget,
-  });
+  const _DeviceTile({required this.device, required this.onTap, this.onForget});
 
   final PairingPayload device;
-  final IconData icon;
-  final bool busy;
   final VoidCallback onTap;
   final VoidCallback? onForget;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon),
+      leading: const Icon(Icons.computer),
       title: Text(device.name),
       subtitle: Text(device.host),
-      trailing: busy
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : onForget == null
+      trailing: onForget == null
           ? const Icon(Icons.chevron_right)
           : IconButton(
               icon: const Icon(Icons.close),
               tooltip: 'Forget',
               onPressed: onForget,
             ),
-      onTap: busy ? null : onTap,
+      onTap: onTap,
     );
   }
 }

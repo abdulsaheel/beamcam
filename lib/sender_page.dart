@@ -11,8 +11,6 @@ import 'pairing.dart';
 import 'pairing_store.dart';
 import 'signaling.dart';
 
-/// Plain state labels. No bespoke palette — the surface colour and stock
-/// Material components carry the state instead.
 enum LinkState {
   idle('Ready'),
   connecting('Connecting'),
@@ -24,29 +22,10 @@ enum LinkState {
   final String label;
 }
 
-/// The phone side, as one screen with two jobs.
-///
-/// Not connected, the screen *is* the list of computers it can reach — saved
-/// ones first, discovered ones under them. Tapping one starts the stream and
-/// the same screen becomes the streaming view. There is no pushed route in the
-/// primary flow and no settings sheet in front of it, so a returning user goes
-/// from launcher to live in a single tap.
-///
-/// The preview is deliberately demoted. It is capped at roughly a quarter of
-/// the screen, it can be turned off entirely, and everything that matters —
-/// link state, what is being sent, and where — is legible without it.
-
-/// Opt-in only, and Android-only. The foreground service posts a permanent
-/// notification and keeps the camera powered, so it runs when the user asks for
-/// it and not before. iOS has no equivalent: AVCaptureSession is suspended the
-/// moment the app leaves the screen and there is no workaround, which is why
-/// the switch is hidden rather than shown-and-broken there.
+/// Android-only host channel: background service + rotation pinning.
 const _serviceChannel = MethodChannel('beamcam/service');
 
-/// WebRTC takes its capture rotation from the activity's orientation, so
-/// forcing the activity is what actually rotates the outgoing video. Doing it
-/// in-app matters because it overrides the system auto-rotate toggle — a phone
-/// with rotation locked would otherwise be stuck sending portrait forever.
+
 enum Framing {
   landscape(
     'Landscape',
@@ -72,9 +51,7 @@ enum Framing {
   final List<DeviceOrientation> orientations;
 }
 
-/// Capture ladder. Resolution, frame rate and the bitrate ceiling move
-/// together, because picking them independently is a trap: 1080p60 inside a
-/// 4 Mbps cap just looks like smeared 1080p30.
+
 enum Quality {
   sd('480p', 640, 480, 30, 1500000, 'Weak Wi‑Fi'),
   hd('720p', 1280, 720, 30, 4000000, 'Balanced'),
@@ -100,22 +77,13 @@ enum Quality {
   final int maxBitrate;
   final String note;
 
-  String get spec {
-    final mbps = maxBitrate / 1000000;
-    final rounded = mbps == mbps.roundToDouble()
-        ? mbps.toStringAsFixed(0)
-        : mbps.toStringAsFixed(1);
-    return '$w × $h · $fps fps · up to $rounded Mbps';
-  }
+  String get spec =>
+      '$w × $h · $fps fps · up to '
+      '${(maxBitrate / 1e6).toStringAsFixed(maxBitrate % 1000000 == 0 ? 0 : 1)} Mbps';
 }
 
 class SenderPage extends StatefulWidget {
-  const SenderPage({super.key, this.debugAutoConnect});
-
-  /// Review-harness seam only. Production builds construct `SenderPage()` and
-  /// leave this null.
-  @visibleForTesting
-  final PairingPayload? debugAutoConnect;
+  const SenderPage({super.key});
 
   @override
   State<SenderPage> createState() => _SenderPageState();
@@ -134,34 +102,28 @@ class _SenderPageState extends State<SenderPage> {
   LinkState _state = LinkState.idle;
   String _status = '';
   bool _front = false;
-  Quality _quality = Quality.hd;
+  Quality _quality = Quality.fhd;
   Framing _framing = Framing.landscape;
   bool _keepAlive = false;
 
-  /// On by default because framing yourself is the first thing anyone does,
-  /// but capped small and switchable off. Turning it off stops the render, not
-  /// the capture, so the computer keeps its picture.
   bool _preview = true;
+
+
+  bool _mirror = false;
+  bool _flip = false;
 
   /// The computer this session is pointed at.
   PairingPayload? _target;
   List<PairingPayload> _saved = const [];
 
-  /// True from the moment a connection attempt begins until teardown finishes.
-  /// The screen switches on this rather than on [_state], so a momentary ICE
-  /// disconnect reports itself in place instead of dumping the user back to the
-  /// device list mid-call.
   bool _session = false;
 
-  /// Held across the teardown/start pair inside [_restartWith] so flipping the
-  /// camera or changing quality never flashes the device list.
+
   bool _restarting = false;
 
   DateTime? _liveSince;
   String? _videoTrackId;
 
-  /// dispose() cannot await _teardown(), so the teardown's later half can run
-  /// after the renderer is already gone. Writing srcObject then throws.
   bool _disposed = false;
 
   bool get _live =>
@@ -169,7 +131,6 @@ class _SenderPageState extends State<SenderPage> {
 
   bool get _onStream => _session || _restarting;
 
-  /// "USB cable" reads oddly in a sentence; everything else is a computer name.
   String deviceLabel(PairingPayload target) =>
       target.host == kUsbHost ? 'The cable' : target.name;
 
@@ -177,16 +138,9 @@ class _SenderPageState extends State<SenderPage> {
   void initState() {
     super.initState();
     unawaited(_renderer.initialize());
-    // Deliberately NOT locking here. Framing governs the outgoing video, not
-    // how you hold the phone while picking a computer, so the lock is applied
-    // when a stream starts and released when it ends.
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     unawaited(_reloadSaved());
     unawaited(_initDeepLinks());
-    final auto = widget.debugAutoConnect;
-    if (auto != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _connectTo(auto));
-    }
   }
 
   @override
@@ -209,12 +163,7 @@ class _SenderPageState extends State<SenderPage> {
     setState(() => _saved = saved);
   }
 
-  /// The replacement for the in-app QR scanner.
-  ///
-  /// The desktop shows a QR encoding `beamcam://connect?h=..&p=..&n=..`; the
-  /// phone's own Camera app reads it and launches us with that URI. That is
-  /// strictly fewer steps than any scanner we could ship, needs no camera
-  /// permission before pairing, and works identically on both phone platforms.
+  /// Handles beamcam://connect?h=..&p=..&n=.. opened from the system camera app.
   Future<void> _initDeepLinks() async {
     try {
       final initial = await _appLinks.getInitialLink();
@@ -238,12 +187,9 @@ class _SenderPageState extends State<SenderPage> {
     await _connectTo(payload);
   }
 
-  /// One entry point for every route in: tapping a saved computer, tapping a
-  /// discovered one, following a scanned link, or typing an address. They all
-  /// land here, so they all behave identically.
+
   Future<void> _connectTo(PairingPayload target) async {
-    // The loopback developer route is never worth remembering — it is not a
-    // computer, it is a cable.
+    // The loopback developer route is never worth remembering 
     if (target.host != kUsbHost) {
       await _store.remember(target);
       await _reloadSaved();
@@ -275,9 +221,7 @@ class _SenderPageState extends State<SenderPage> {
 
   // ------------------------------------------------------------- capture
 
-  /// Rotating the activity is enough — libwebrtc's capturer watches display
-  /// rotation and re-tags frames, so an active stream follows without
-  /// renegotiating.
+
   Future<void> _setFraming(Framing framing) async {
     setState(() => _framing = framing);
     // Only bite while streaming; idle, the UI stays free to rotate.
@@ -288,6 +232,23 @@ class _SenderPageState extends State<SenderPage> {
     // would pin the old rotation.
     await Future<void>.delayed(const Duration(milliseconds: 700));
     await _pinRotation();
+  }
+
+  /// Mirror and flip are pushed over signaling rather than applied on the
+  /// phone: the desktop is already compositing every frame on the GPU, so it
+  /// can flip for free.
+  void _sendTransform() {
+    _socket?.add(
+      Signal('transform', {'mirror': _mirror, 'flip': _flip}).encode(),
+    );
+  }
+
+  void _setTransform({bool? mirror, bool? flip}) {
+    setState(() {
+      _mirror = mirror ?? _mirror;
+      _flip = flip ?? _flip;
+    });
+    _sendTransform();
   }
 
   /// Freezes the outgoing rotation tag natively. Without this, backgrounding
@@ -372,14 +333,14 @@ class _SenderPageState extends State<SenderPage> {
       final videoTracks = _stream!.getVideoTracks();
       _videoTrackId = videoTracks.isEmpty ? null : videoTracks.first.id;
       // Let the preview settle so the latched rotation is the correct one.
+      // Order matters: the capturer takes its rotation from the activity, so
+      // the lock has to be in place and settled before the pin is latched.
+      // Pinning first captures whatever rotation the phone happened to be in.
+      await SystemChrome.setPreferredOrientations(_framing.orientations);
       await Future<void>.delayed(const Duration(milliseconds: 700));
       await _pinRotation();
 
       if (_keepAlive) await _syncBackgroundService(shouldRun: true);
-
-      // Now the lock matters: the capturer takes its rotation from the
-      // activity, so the frame shape is decided here.
-      await SystemChrome.setPreferredOrientations(_framing.orientations);
 
       final name = deviceLabel(target);
       _log('Reaching $name…');
@@ -393,13 +354,7 @@ class _SenderPageState extends State<SenderPage> {
 
       pc.onIceCandidate = (candidate) {
         if (candidate.candidate == null) return;
-        socket.add(
-          Signal('ice', {
-            'candidate': candidate.candidate,
-            'sdpMid': candidate.sdpMid,
-            'sdpMLineIndex': candidate.sdpMLineIndex,
-          }).encode(),
-        );
+        socket.add(Signal.ice(candidate).encode());
       };
 
       pc.onConnectionState = (s) {
@@ -431,7 +386,6 @@ class _SenderPageState extends State<SenderPage> {
       for (final track in _stream!.getTracks()) {
         await pc.addTrack(track, _stream!);
       }
-      await _capBitrate(pc, preset.maxBitrate);
 
       socket.listen(
         (raw) => _onSignal(Signal.decode(raw as String)),
@@ -451,6 +405,7 @@ class _SenderPageState extends State<SenderPage> {
 
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      await _capBitrate(pc, preset.maxBitrate, preset.fps);
       socket.add(
         Signal('offer', {'sdp': offer.sdp, 'sdpType': offer.type}).encode(),
       );
@@ -470,7 +425,7 @@ class _SenderPageState extends State<SenderPage> {
 
   /// A ceiling, not a target. Without it the encoder happily spends 20 Mbps on
   /// 1080p60 and the first congested moment collapses the whole link.
-  Future<void> _capBitrate(RTCPeerConnection pc, int bps) async {
+  Future<void> _capBitrate(RTCPeerConnection pc, int bps, int fps) async {
     try {
       RTCRtpSender? video;
       for (final sender in await pc.getSenders()) {
@@ -492,6 +447,9 @@ class _SenderPageState extends State<SenderPage> {
       }
       for (final encoding in encodings) {
         encoding.maxBitrate = bps;
+        // 1080p and 1080p60 differ only in frame rate, so capping bitrate
+        // alone leaves the two presets indistinguishable.
+        encoding.maxFramerate = fps;
       }
       await video.setParameters(params);
     } catch (e) {
@@ -513,13 +471,7 @@ class _SenderPageState extends State<SenderPage> {
         );
         _log('Connecting the video…');
       case 'ice':
-        await pc.addCandidate(
-          RTCIceCandidate(
-            signal.data['candidate'] as String?,
-            signal.data['sdpMid'] as String?,
-            signal.data['sdpMLineIndex'] as int?,
-          ),
-        );
+        await pc.addCandidate(signal.toCandidate());
       default:
         break;
     }
@@ -527,7 +479,6 @@ class _SenderPageState extends State<SenderPage> {
 
   Future<void> _teardown() async {
     // Hand rotation back to the user the moment streaming stops.
-    unawaited(SystemChrome.setPreferredOrientations(DeviceOrientation.values));
     if (!_disposed && mounted) {
       setState(() {
         _session = false;
@@ -568,6 +519,8 @@ class _SenderPageState extends State<SenderPage> {
   }
 
   Future<void> _stop() async {
+    // Hand rotation back to the user only when the session really ends.
+    unawaited(SystemChrome.setPreferredOrientations(DeviceOrientation.values));
     await _teardown();
     _log('Stopped', state: LinkState.idle);
   }
@@ -603,7 +556,6 @@ class _SenderPageState extends State<SenderPage> {
       onConnect: (p) => unawaited(_connectTo(p)),
       onForget: (p) => unawaited(_forget(p)),
       onForgetAll: () => unawaited(_forgetAll()),
-      busyHost: _state == LinkState.connecting ? _target?.host : null,
       error: _state == LinkState.failed ? _status : null,
     );
   }
@@ -616,8 +568,6 @@ class _SenderPageState extends State<SenderPage> {
 
     return Scaffold(
       appBar: AppBar(
-        // 2. A real back affordance: leaving the stream is the way back to the
-        //    list of computers, so the arrow does exactly that.
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back to computers',
@@ -631,7 +581,7 @@ class _SenderPageState extends State<SenderPage> {
             child: Padding(
               padding: const EdgeInsets.only(left: 16, bottom: 8),
               child: Text(
-                _state == LinkState.streaming ? 'Live' : _state.label,
+                _state.label,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: _state == LinkState.streaming
                       ? scheme.primary
@@ -641,13 +591,6 @@ class _SenderPageState extends State<SenderPage> {
             ),
           ),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Switch computer',
-            icon: const Icon(Icons.swap_horiz),
-            onPressed: () => unawaited(_stop()),
-          ),
-        ],
       ),
       body: SafeArea(
         child: landscape
@@ -773,6 +716,22 @@ class _SenderPageState extends State<SenderPage> {
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           SwitchListTile(
+            secondary: const Icon(Icons.flip),
+            title: const Text('Mirror'),
+            subtitle: const Text('Flips left to right'),
+            value: _mirror,
+            onChanged: (v) => _setTransform(mirror: v),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          SwitchListTile(
+            secondary: const Icon(Icons.flip_camera_android_outlined),
+            title: const Text('Flip'),
+            subtitle: const Text('Turns the picture upside down'),
+            value: _flip,
+            onChanged: (v) => _setTransform(flip: v),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          SwitchListTile(
             secondary: const Icon(Icons.visibility_outlined),
             title: const Text('Preview'),
             subtitle: const Text('Turning it off saves battery'),
@@ -796,25 +755,40 @@ class _SenderPageState extends State<SenderPage> {
     );
   }
 
-  Future<void> _pickQuality(BuildContext context) async {
-    final picked = await showModalBottomSheet<Quality>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
+  /// MUST stay a modal bottom sheet: showDialog crashes the macOS AOT compiler
+  /// and this file compiles into the desktop build.
+  Future<T?> _pickOne<T>(
+    BuildContext context,
+    List<T> options,
+    Widget Function(T value, ValueChanged<T?> onChanged) tile,
+  ) => showModalBottomSheet<T>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => SafeArea(
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final q in Quality.values)
-              RadioListTile<Quality>(
-                value: q,
-                groupValue: _quality,
-                title: Text(q.label),
-                subtitle: Text(q.spec),
-                secondary: Text(q.note),
-                onChanged: (v) => Navigator.of(context).pop(v),
-              ),
+            for (final o in options)
+              tile(o, (v) => Navigator.of(context).pop(v)),
           ],
         ),
+      ),
+    ),
+  );
+
+  Future<void> _pickQuality(BuildContext context) async {
+    final picked = await _pickOne<Quality>(
+      context,
+      Quality.values,
+      (q, onChanged) => RadioListTile<Quality>(
+        value: q,
+        groupValue: _quality,
+        title: Text(q.label),
+        subtitle: Text(q.spec),
+        secondary: Text(q.note),
+        onChanged: onChanged,
       ),
     );
     if (picked != null && picked != _quality) {
@@ -823,24 +797,16 @@ class _SenderPageState extends State<SenderPage> {
   }
 
   Future<void> _pickFraming(BuildContext context) async {
-    final picked = await showModalBottomSheet<Framing>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final f in Framing.values)
-              RadioListTile<Framing>(
-                value: f,
-                groupValue: _framing,
-                title: Text(f.label),
-                subtitle: Text(f.note),
-                secondary: Icon(f.icon),
-                onChanged: (v) => Navigator.of(context).pop(v),
-              ),
-          ],
-        ),
+    final picked = await _pickOne<Framing>(
+      context,
+      Framing.values,
+      (f, onChanged) => RadioListTile<Framing>(
+        value: f,
+        groupValue: _framing,
+        title: Text(f.label),
+        subtitle: Text(f.note),
+        secondary: Icon(f.icon),
+        onChanged: onChanged,
       ),
     );
     if (picked != null && picked != _framing) await _setFraming(picked);

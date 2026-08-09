@@ -2,14 +2,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'pairing.dart';
 
-/// Remembers Macs the phone has paired with, so opening the app reconnects
-/// without discovery, scanning, or typing.
-///
-/// This is what actually makes repeat use feel instant — discovery is only
-/// needed the first time, or when the saved address goes stale.
+/// Remembers computers the phone has paired with, so opening the app
+/// reconnects without discovery, scanning, or typing.
 class PairingStore {
-  static const _kKnown = 'beamcam.known_macs';
-  static const _kLast = 'beamcam.last_mac';
+  /// Saved as pairing URIs — the same string the QR carries — so the app has
+  /// one serialisation instead of two.
+  static const _key = 'beamcam.saved';
 
   /// Most recent first, capped so a phone that hops networks does not grow an
   /// unbounded list of dead addresses.
@@ -17,48 +15,34 @@ class PairingStore {
 
   Future<List<PairingPayload>> known() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kKnown);
-    // Growable, never const: callers mutate this list, and a const [] here
-    // throws "Cannot remove from an unmodifiable list" on the very first pairing.
-    return raw == null ? <PairingPayload>[] : PairingPayload.decodeList(raw);
+    final raw = prefs.getStringList(_key) ?? const <String>[];
+    // toList() is growable, which callers rely on.
+    return raw.map(PairingPayload.tryParse).nonNulls.toList();
   }
 
-  Future<PairingPayload?> last() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kLast);
-    if (raw == null) return null;
-    return PairingPayload.tryParse(raw);
-  }
-
-  /// Records a successful pairing. Re-saving a known Mac moves it to the front
-  /// rather than duplicating it — equality is host+port, so a renamed Mac at
-  /// the same address updates in place.
+  /// Records a successful pairing. Re-saving a known computer moves it to the
+  /// front rather than duplicating it — equality is host+port, so a renamed
+  /// machine at the same address updates in place.
   Future<void> remember(PairingPayload payload) async {
-    final prefs = await SharedPreferences.getInstance();
     final list = await known();
     list.removeWhere((e) => e == payload);
     list.insert(0, payload);
-
-    await prefs.setString(
-      _kKnown,
-      PairingPayload.encodeList(list.take(maxRemembered).toList()),
-    );
-    await prefs.setString(_kLast, payload.encode());
+    await _write(list.take(maxRemembered).toList());
   }
 
   Future<void> forget(PairingPayload payload) async {
-    final prefs = await SharedPreferences.getInstance();
     final list = await known();
     list.removeWhere((e) => e == payload);
-    await prefs.setString(_kKnown, PairingPayload.encodeList(list));
-
-    final lastOne = await last();
-    if (lastOne == payload) await prefs.remove(_kLast);
+    await _write(list);
   }
 
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kKnown);
-    await prefs.remove(_kLast);
+    await prefs.remove(_key);
+  }
+
+  Future<void> _write(List<PairingPayload> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key, [for (final e in list) e.encode()]);
   }
 }

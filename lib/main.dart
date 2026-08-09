@@ -2,32 +2,57 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'about.dart';
 import 'receiver_page.dart';
 import 'sender_page.dart';
 
-void main() {
+
+final themeMode = ValueNotifier<ThemeMode>(ThemeMode.system);
+
+const _themeKey = 'beamcam.theme';
+
+extension ThemeModeLabel on ThemeMode {
+  String get label => switch (this) {
+    ThemeMode.system => 'Match system',
+    ThemeMode.light => 'Light',
+    ThemeMode.dark => 'Dark',
+  };
+
+  IconData get icon => switch (this) {
+    ThemeMode.system => Icons.brightness_auto_outlined,
+    ThemeMode.light => Icons.light_mode_outlined,
+    ThemeMode.dark => Icons.dark_mode_outlined,
+  };
+}
+
+Future<void> setThemeMode(ThemeMode mode) async {
+  themeMode.value = mode;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_themeKey, mode.name);
+}
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Draw behind the status and navigation bars, and make both transparent, so
-  // the app's own background reaches every edge instead of leaving black strips
-  // beside the content.
+
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarDividerColor: Colors.transparent,
-    ),
+
+  // Read before the first frame so a saved choice never flashes the wrong
+  // theme on launch.
+  await loadVersion();
+
+  final saved = (await SharedPreferences.getInstance()).getString(_themeKey);
+  themeMode.value = ThemeMode.values.firstWhere(
+    (m) => m.name == saved,
+    orElse: () => ThemeMode.system,
   );
 
   runApp(const BeamCamApp());
 }
 
-/// One codebase, two roles. The phone captures, the desktop receives.
-/// Role is picked from the host platform rather than a setting, because a
-/// desktop build has no camera worth sending and a phone build has no virtual
-/// camera to feed.
+
 bool get _isSender => Platform.isAndroid || Platform.isIOS;
 
 class BeamCamApp extends StatelessWidget {
@@ -37,15 +62,16 @@ class BeamCamApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'BeamCam',
-      debugShowCheckedModeBanner: false,
-      // Follows the system rather than forcing a look. Stock Material in both
-      // modes: no bespoke palette, no custom type scale.
-      themeMode: ThemeMode.system,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
-      home: _isSender ? const SenderPage() : const ReceiverPage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeMode,
+      builder: (context, mode, _) => MaterialApp(
+        title: 'BeamCam',
+        debugShowCheckedModeBanner: false,
+        themeMode: mode,
+        theme: _theme(Brightness.light),
+        darkTheme: _theme(Brightness.dark),
+        home: _isSender ? const SenderPage() : const ReceiverPage(),
+      ),
     );
   }
 
@@ -55,10 +81,7 @@ class BeamCamApp extends StatelessWidget {
       brightness: brightness,
     );
     return ThemeData(
-      useMaterial3: true,
       colorScheme: scheme,
-      // The desktop receiver still wants a dark stage for video; it sets that
-      // locally rather than dragging the whole app dark.
       cardTheme: CardThemeData(
         elevation: 0,
         color: scheme.surfaceContainerLow,
