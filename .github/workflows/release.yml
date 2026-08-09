@@ -94,7 +94,7 @@ jobs:
     # env once here. Absent secrets => every signing step no-ops and the job
     # still produces an (unsigned, non-functional) build rather than failing.
     env:
-      SIGNED: ${{ secrets.MACOS_CERT_P12 != '' && secrets.NOTARY_KEY_P8 != '' }}
+      SIGNED: ${{ secrets.MACOS_CERT_P12 != '' && secrets.MACOS_PROFILE_APP != '' && secrets.NOTARY_KEY_P8 != '' }}
       APP: build/macos/Build/Products/Release/beamcam.app
       ZIP: beamcam-${{ needs.version.outputs.version }}-macos.zip
     steps:
@@ -122,17 +122,16 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
           rm "$RUNNER_TEMP/cert.p12"
 
-      # A system extension needs the system-extension.install entitlement, which
-      # only a provisioning profile can grant outside the App Store. Both the
-      # container app and the extension carry their own.
-      - name: Install provisioning profiles
+      # Only the container app needs a profile: system-extension.install is a
+      # restricted entitlement and nothing but a profile can grant it. The
+      # extension's own entitlements (sandbox, app group, camera) are not
+      # restricted, so it signs without one — as the local build does.
+      - name: Install provisioning profile
         if: env.SIGNED == 'true'
         run: |
           mkdir -p ~/Library/Provisioning\ Profiles
           echo "${{ secrets.MACOS_PROFILE_APP }}" | base64 --decode \
             > ~/Library/Provisioning\ Profiles/app.provisionprofile
-          echo "${{ secrets.MACOS_PROFILE_EXT }}" | base64 --decode \
-            > ~/Library/Provisioning\ Profiles/ext.provisionprofile
 
       - run: flutter pub get
       - run: flutter build macos --release
@@ -144,9 +143,10 @@ jobs:
         run: |
           ID="${{ secrets.MACOS_SIGN_IDENTITY }}"
           EXT="$APP/Contents/Library/SystemExtensions"
+          # Re-signing from the entitlements file also drops get-task-allow,
+          # which Xcode injects when signing with a development identity and
+          # which notarization rejects outright.
           for f in "$EXT"/*.systemextension; do
-            cp ~/Library/Provisioning\ Profiles/ext.provisionprofile \
-               "$f/Contents/embedded.provisionprofile"
             codesign --force --timestamp --options runtime \
               --entitlements macos/CameraExtension/CameraExtension.entitlements \
               --sign "$ID" "$f"
@@ -188,7 +188,7 @@ jobs:
         run: |
           echo "::warning::Built WITHOUT signing — the system extension will not \
           activate. Set MACOS_CERT_P12, MACOS_CERT_PASSWORD, MACOS_SIGN_IDENTITY, \
-          MACOS_PROFILE_APP, MACOS_PROFILE_EXT, NOTARY_KEY_P8, NOTARY_KEY_ID and \
+          MACOS_PROFILE_APP, NOTARY_KEY_P8, NOTARY_KEY_ID and \
           NOTARY_ISSUER_ID to produce a working build."
 
       - name: Attach to the release
