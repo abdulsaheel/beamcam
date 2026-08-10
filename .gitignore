@@ -50,3 +50,7 @@ app.*.map.json
 *.p8
 *.cer
 *.mobileprovision
+
+# Raw screenshot sources — only the processed ones in screenshots/*.png|jpg ship
+screenshots/Screenshot *
+screenshots/WhatsApp *

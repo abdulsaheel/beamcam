@@ -5,6 +5,23 @@
 Use an Android phone as a webcam on macOS. One Flutter codebase, two roles: the
 phone captures and sends, the Mac receives and displays.
 
+## Screenshots
+
+<img src="screenshots/mac-live.png" alt="The BeamCam window on a Mac showing the live picture arriving from the phone, with the virtual camera streaming" width="760">
+
+The Mac app with the phone's camera arriving. `Virtual camera · streaming` means
+it is being served to every app on the system as a camera called **BeamCam**.
+
+<img src="screenshots/phone-connect.jpg" alt="The BeamCam app on an Android phone listing saved computers found on the same Wi-Fi" width="260">
+
+The phone's home screen. Saved computers first, anything else found on the
+network below, and the QR code or a typed address as the fallback.
+
+<img src="screenshots/phone-live.jpg" alt="The BeamCam app streaming, showing the preview alongside camera, quality, framing and mirror controls" width="700">
+
+While streaming, the phone keeps the controls: camera, quality, framing, mirror
+and flip, all applied without dropping the call.
+
 ## Why this exists
 
 Every open-source Android→webcam project on macOS routes video through OBS.
