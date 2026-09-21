@@ -1,5 +1,6 @@
 package com.abdulsaheel.beamcam
 
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -36,6 +37,15 @@ class MainActivity : FlutterActivity() {
                     }
                     "unpinRotation" -> {
                         call.argument<String>("trackId")?.let { RotationPinner.unpin(it) }
+                        result.success(true)
+                    }
+                    "setKeepScreenOn" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        if (enabled) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
                         result.success(true)
                     }
                     else -> result.notImplemented()

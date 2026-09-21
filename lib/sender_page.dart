@@ -289,6 +289,19 @@ class _SenderPageState extends State<SenderPage> {
     await _syncBackgroundService(shouldRun: enabled && _live);
   }
 
+  /// Keeps the screen on while streaming — the camera capture (and the whole
+  /// connection) dies when Android puts the screen to sleep mid-stream.
+  Future<void> _setKeepScreenOn(bool enabled) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _serviceChannel.invokeMethod('setKeepScreenOn', {'enabled': enabled});
+    } on MissingPluginException {
+      // Nothing registered on this host.
+    } on PlatformException catch (e) {
+      debugPrint('BeamCam: setKeepScreenOn failed — ${e.message}');
+    }
+  }
+
   Future<void> _syncBackgroundService({required bool shouldRun}) async {
     // Android is the only platform where a background capture is possible at
     // all, so it is the only one we ask.
@@ -337,6 +350,7 @@ class _SenderPageState extends State<SenderPage> {
       _state = LinkState.connecting;
       _status = 'Opening the camera…';
     });
+    unawaited(_setKeepScreenOn(true));
 
     try {
       final preset = _quality;
@@ -504,6 +518,7 @@ class _SenderPageState extends State<SenderPage> {
   }
 
   Future<void> _teardown() async {
+    unawaited(_setKeepScreenOn(false));
     // Hand rotation back to the user the moment streaming stops.
     if (!_disposed && mounted) {
       setState(() {
