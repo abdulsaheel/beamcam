@@ -75,6 +75,12 @@ final class CMIOSinkClient {
 
     /// The device's localized name as published by BeamCamProvider.
     private let deviceName = "BeamCam"
+    // Must match kDeviceUID in BeamCamProvider.swift. If two extension instances
+    // are alive at once (a stale bundle ID left registered alongside the current
+    // one), name matching alone binds to whichever enumerates first — which can
+    // be the wrong one, so the sink pushes frames nobody's source stream reads.
+    // An exact UID match is unambiguous and always wins over that.
+    private let deviceUID = "com.abdulsaheel.beamcam.camera"
 
     // MARK: - Lifecycle
 
@@ -356,7 +362,8 @@ final class CMIOSinkClient {
             dataSize, &dataUsed, &devices) == noErr
         else { return nil }
 
-        var match: CMIODeviceID?
+        var uidMatch: CMIODeviceID?
+        var nameMatch: CMIODeviceID?
         for device in devices {
             let name = stringProperty(
                 object: device,
@@ -367,14 +374,26 @@ final class CMIOSinkClient {
             if verbose {
                 BeamCamLog.write("sink: HAL device 0x\(String(device, radix: 16)) name=\"\(name)\" uid=\"\(uid)\"")
             }
-            guard match == nil else { continue }
-            if name == deviceName || name.hasPrefix(deviceName) {
-                match = device
-            } else if let avUniqueID, !avUniqueID.isEmpty, uid == avUniqueID {
-                match = device
+            if uid == deviceUID, uidMatch == nil {
+                uidMatch = device
+            }
+            if nameMatch == nil, name == deviceName || name.hasPrefix(deviceName) {
+                nameMatch = device
+            } else if nameMatch == nil, let avUniqueID, !avUniqueID.isEmpty, uid == avUniqueID {
+                nameMatch = device
             }
         }
-        return match
+        // Exact UID match always wins: with two instances of the extension alive
+        // (e.g. a stale bundle ID still registered), name-only matching picks
+        // whichever enumerates first, which may not be the one a conferencing
+        // app's picker is actually reading from.
+        if let uidMatch {
+            if verbose, nameMatch != nil, nameMatch != uidMatch {
+                BeamCamLog.write("sink: multiple \"\(deviceName)\" devices found, picked by UID over first-by-name")
+            }
+            return uidMatch
+        }
+        return nameMatch
     }
 
     private func avCaptureUniqueID() -> String? {
