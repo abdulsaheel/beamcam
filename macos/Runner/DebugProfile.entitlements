@@ -2,15 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<!-- App Sandbox dropped — see Release.entitlements for the full rationale
+	     (the virtual-mic HAL driver needs a fixed-path shared-memory file
+	     outside any sandbox container). cs.allow-jit is unrelated (hardened
+	     runtime, needed for the Dart VM in debug/profile) and stays. -->
 	<key>com.apple.security.cs.allow-jit</key>
-	<true/>
-	<key>com.apple.security.network.server</key>
-	<true/>
-	<key>com.apple.security.network.client</key>
-	<true/>
-	<key>com.apple.security.device.camera</key>
 	<true/>
 	<key>com.apple.developer.system-extension.install</key>
 	<true/>

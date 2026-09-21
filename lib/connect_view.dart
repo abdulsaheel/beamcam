@@ -162,6 +162,11 @@ class _ConnectViewState extends State<ConnectView> {
           ],
 
           if (widget.saved.isNotEmpty) ...[
+            _ReconnectCard(
+              device: widget.saved.first,
+              onTap: () => widget.onConnect(widget.saved.first),
+            ),
+            const SizedBox(height: 20),
             _Header('Saved'),
             Card(
               child: Column(
@@ -268,6 +273,37 @@ class _ConnectViewState extends State<ConnectView> {
           const SizedBox(height: 28),
           const AboutFooter(),
         ],
+      ),
+    );
+  }
+}
+
+/// One-tap reconnect to the most recently used computer. `PairingStore`
+/// already keeps its list most-recent-first, so this is just the first
+/// element surfaced as its own affordance instead of buried in the list below.
+class _ReconnectCard extends StatelessWidget {
+  const _ReconnectCard({required this.device, required this.onTap});
+
+  final PairingPayload device;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.primaryContainer,
+      child: ListTile(
+        leading: Icon(Icons.replay, color: theme.colorScheme.onPrimaryContainer),
+        title: Text(
+          'Reconnect to ${device.name}',
+          style: TextStyle(color: theme.colorScheme.onPrimaryContainer),
+        ),
+        subtitle: Text(
+          device.host,
+          style: TextStyle(color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7)),
+        ),
+        trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onPrimaryContainer),
+        onTap: onTap,
       ),
     );
   }

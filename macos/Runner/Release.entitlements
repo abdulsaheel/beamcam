@@ -2,14 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<key>com.apple.security.network.server</key>
-	<true/>
-	<key>com.apple.security.network.client</key>
-	<true/>
-	<key>com.apple.security.device.camera</key>
-	<true/>
+	<!-- App Sandbox dropped: the virtual-mic HAL driver reads a fixed-path
+	     shared-memory file (/Library/Application Support/BeamCam/beamcam-audio.ring)
+	     that coreaudiod, running as its own user, must also reach — App Sandbox
+	     blocks that absolute path even with a temporary-exception entitlement.
+	     Fine since this app is Developer ID + notarized, never Mac App Store.
+	     security.network.server/client and security.device.camera were sandbox
+	     exception entitlements; inert without app-sandbox, so removed. -->
 	<key>com.apple.developer.system-extension.install</key>
 	<true/>
 	<key>com.apple.security.application-groups</key>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<!-- Bump on every driver change, same reason as CameraExtension's
+	     Info.plist: coreaudiod caches what it has loaded, and a copy over the
+	     same bundle id with an unchanged version can silently keep running
+	     the old binary until a full reboot. -->
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleDisplayName</key>
+	<string>BeamCam Virtual Microphone</string>
+	<key>CFPlugInFactories</key>
+	<dict>
+		<key>44BAB343-6D74-4F51-BBB9-B3C5C1234567</key>
+		<string>BeamCamAudioPlugIn_Create</string>
+	</dict>
+	<key>CFPlugInTypes</key>
+	<dict>
+		<!-- kAudioServerPlugInTypeUUID, from CoreAudio/AudioServerPlugIn.h. -->
+		<key>443ABAB8-E7B3-491A-B985-BEB9187030DB</key>
+		<array>
+			<string>44BAB343-6D74-4F51-BBB9-B3C5C1234567</string>
+		</array>
+	</dict>
+</dict>
+</plist>

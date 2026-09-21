@@ -106,6 +106,11 @@ class _SenderPageState extends State<SenderPage> {
   Framing _framing = Framing.landscape;
   bool _keepAlive = false;
 
+  /// Independent of each other: either can run alone, or both together.
+  /// _start() refuses to run with both off (see _canStart).
+  bool _videoEnabled = true;
+  bool _audioEnabled = false;
+
   bool _preview = true;
 
 
@@ -266,6 +271,18 @@ class _SenderPageState extends State<SenderPage> {
     }
   }
 
+  /// Restarts with the camera track added or dropped. Refuses to turn off the
+  /// last enabled track — nothing to stream is a dead link, not a valid state.
+  Future<void> _setVideoEnabled(bool enabled) async {
+    if (!enabled && !_audioEnabled) return;
+    await _restartWith(() => _videoEnabled = enabled);
+  }
+
+  Future<void> _setAudioEnabled(bool enabled) async {
+    if (!enabled && !_videoEnabled) return;
+    await _restartWith(() => _audioEnabled = enabled);
+  }
+
   Future<void> _setKeepAlive(bool enabled) async {
     setState(() => _keepAlive = enabled);
     // Only hold the service while there is actually something to stream.
@@ -279,6 +296,7 @@ class _SenderPageState extends State<SenderPage> {
     try {
       await _serviceChannel.invokeMethod(
         shouldRun ? 'startBackground' : 'stopBackground',
+        shouldRun ? {'video': _videoEnabled, 'audio': _audioEnabled} : null,
       );
     } on PlatformException catch (e) {
       _log('Background service: ${e.message}');
@@ -307,6 +325,10 @@ class _SenderPageState extends State<SenderPage> {
     if (_state == LinkState.connecting || _state == LinkState.streaming) return;
     final target = _target;
     if (target == null) return;
+    if (!_videoEnabled && !_audioEnabled) {
+      _log('Turn on the camera or the microphone first.', state: LinkState.failed);
+      return;
+    }
 
     // Set synchronously, before the first await, so the view never renders a
     // frame of the device list between the tap and the streaming screen.
@@ -319,13 +341,15 @@ class _SenderPageState extends State<SenderPage> {
     try {
       final preset = _quality;
       _stream = await navigator.mediaDevices.getUserMedia({
-        'audio': false,
-        'video': {
-          'facingMode': _front ? 'user' : 'environment',
-          'width': {'ideal': preset.w},
-          'height': {'ideal': preset.h},
-          'frameRate': {'ideal': preset.fps},
-        },
+        'audio': _audioEnabled,
+        'video': _videoEnabled
+            ? {
+                'facingMode': _front ? 'user' : 'environment',
+                'width': {'ideal': preset.w},
+                'height': {'ideal': preset.h},
+                'frameRate': {'ideal': preset.fps},
+              }
+            : false,
       });
       _renderer.srcObject = _preview ? _stream : null;
       if (mounted) setState(() {});
@@ -336,6 +360,8 @@ class _SenderPageState extends State<SenderPage> {
       // Order matters: the capturer takes its rotation from the activity, so
       // the lock has to be in place and settled before the pin is latched.
       // Pinning first captures whatever rotation the phone happened to be in.
+      // No-ops when there is no video track (_pinRotation and RotationPinner
+      // both guard on trackId/track being present).
       await SystemChrome.setPreferredOrientations(_framing.orientations);
       await Future<void>.delayed(const Duration(milliseconds: 700));
       await _pinRotation();
@@ -528,6 +554,13 @@ class _SenderPageState extends State<SenderPage> {
   /// Restarting the whole session is heavier than swapping the track, but it
   /// keeps renegotiation out of the prototype.
   Future<void> _restartWith(void Function() mutate) async {
+    // Drop a second restart while one is mid-flight rather than race it —
+    // e.g. toggling video off then audio off before the first _teardown()
+    // finishes could otherwise let both guards read stale pre-mutation state
+    // and land both flags false at once. The switches re-render from
+    // _videoEnabled/_audioEnabled once this settles, so the dropped tap is
+    // safe to just retry.
+    if (_restarting) return;
     final wasLive = _session;
     if (wasLive) setState(() => _restarting = true);
     await _teardown();
@@ -634,7 +667,7 @@ class _SenderPageState extends State<SenderPage> {
         const SizedBox(height: 8),
         _Elapsed(since: _liveSince),
         const SizedBox(height: 20),
-        if (_preview) ...[
+        if (_preview && _videoEnabled) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Container(
@@ -694,50 +727,68 @@ class _SenderPageState extends State<SenderPage> {
     return Card(
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.cameraswitch_outlined),
+          SwitchListTile(
+            secondary: const Icon(Icons.videocam_outlined),
             title: const Text('Camera'),
-            subtitle: Text(_front ? 'Front' : 'Back'),
-            onTap: () => unawaited(_restartWith(() => _front = !_front)),
-          ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          ListTile(
-            leading: const Icon(Icons.high_quality_outlined),
-            title: const Text('Quality'),
-            subtitle: Text('${_quality.label} · ${_quality.note}'),
-            onTap: () => unawaited(_pickQuality(context)),
-          ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          ListTile(
-            leading: Icon(_framing.icon),
-            title: const Text('Framing'),
-            subtitle: Text(_framing.label),
-            onTap: () => unawaited(_pickFraming(context)),
+            subtitle: const Text('Send video'),
+            value: _videoEnabled,
+            onChanged: (v) => unawaited(_setVideoEnabled(v)),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           SwitchListTile(
-            secondary: const Icon(Icons.flip),
-            title: const Text('Mirror'),
-            subtitle: const Text('Flips left to right'),
-            value: _mirror,
-            onChanged: (v) => _setTransform(mirror: v),
+            secondary: const Icon(Icons.mic_none_outlined),
+            title: const Text('Microphone'),
+            subtitle: const Text('Send audio'),
+            value: _audioEnabled,
+            onChanged: (v) => unawaited(_setAudioEnabled(v)),
           ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          SwitchListTile(
-            secondary: const Icon(Icons.flip_camera_android_outlined),
-            title: const Text('Flip'),
-            subtitle: const Text('Turns the picture upside down'),
-            value: _flip,
-            onChanged: (v) => _setTransform(flip: v),
-          ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          SwitchListTile(
-            secondary: const Icon(Icons.visibility_outlined),
-            title: const Text('Preview'),
-            subtitle: const Text('Turning it off saves battery'),
-            value: _preview,
-            onChanged: _setPreview,
-          ),
+          if (_videoEnabled) ...[
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: const Icon(Icons.cameraswitch_outlined),
+              title: const Text('Camera'),
+              subtitle: Text(_front ? 'Front' : 'Back'),
+              onTap: () => unawaited(_restartWith(() => _front = !_front)),
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: const Icon(Icons.high_quality_outlined),
+              title: const Text('Quality'),
+              subtitle: Text('${_quality.label} · ${_quality.note}'),
+              onTap: () => unawaited(_pickQuality(context)),
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: Icon(_framing.icon),
+              title: const Text('Framing'),
+              subtitle: Text(_framing.label),
+              onTap: () => unawaited(_pickFraming(context)),
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            SwitchListTile(
+              secondary: const Icon(Icons.flip),
+              title: const Text('Mirror'),
+              subtitle: const Text('Flips left to right'),
+              value: _mirror,
+              onChanged: (v) => _setTransform(mirror: v),
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            SwitchListTile(
+              secondary: const Icon(Icons.flip_camera_android_outlined),
+              title: const Text('Flip'),
+              subtitle: const Text('Turns the picture upside down'),
+              value: _flip,
+              onChanged: (v) => _setTransform(flip: v),
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            SwitchListTile(
+              secondary: const Icon(Icons.visibility_outlined),
+              title: const Text('Preview'),
+              subtitle: const Text('Turning it off saves battery'),
+              value: _preview,
+              onChanged: _setPreview,
+            ),
+          ],
           // Android only: iOS suspends capture the moment the app leaves the
           // screen, with no equivalent to a foreground service.
           if (Platform.isAndroid) ...[
