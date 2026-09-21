@@ -214,6 +214,14 @@ jobs:
                 codesign --force --timestamp --options runtime --sign "$ID" "$f"
               done
 
+          # The ad-hoc build step (CODE_SIGN_IDENTITY = "-") leaves this driver
+          # bundle ad-hoc signed same as everything else, but unlike
+          # SystemExtensions/Frameworks above it lives in Contents/Resources,
+          # which nothing else here re-signs — an ad-hoc nested binary fails
+          # notarization ("Invalid") even though the outer app looks fine.
+          DRIVER="$APP/Contents/Resources/AudioDriver.driver"
+          [ -e "$DRIVER" ] && codesign --force --timestamp --options runtime --sign "$ID" "$DRIVER"
+
           ents "$APP" "$RUNNER_TEMP/app.plist"
           codesign --force --timestamp --options runtime \
             --entitlements "$RUNNER_TEMP/app.plist" --sign "$ID" "$APP"
