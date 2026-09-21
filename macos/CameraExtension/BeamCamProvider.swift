@@ -11,6 +11,18 @@ let kHeight: Int32 = 1080
 
 let kDeviceName = "BeamCam"
 
+// Fixed identity for kCMIODevicePropertyDeviceUID (the "legacy" CMIO device UID,
+// which is what CMIOSinkClient.findDevice() and any other DAL consumer read).
+// This must stay constant across launches so the desktop app's sink always binds
+// to the extension that's actually backing the source stream a picker sees —
+// see CMIOSinkClient.findDevice(). `deviceID` (the CMIOExtensionDevice UUID)
+// stays a fresh UUID() per launch on purpose: pinning THAT one previously broke
+// extension launch, likely a HAL device-identity conflict with a still-running
+// stale instance advertising the same UUID. legacyDeviceID is just a string
+// property read back via kCMIODevicePropertyDeviceUID, not used for CMIO's own
+// device registration, so it's safe to pin.
+let kDeviceUID = "com.abdulsaheel.beamcam.camera"
+
 
 
 class BeamCamProviderSource: NSObject, CMIOExtensionProviderSource {
@@ -82,7 +94,7 @@ class BeamCamDeviceSource: NSObject, CMIOExtensionDeviceSource {
         device = CMIOExtensionDevice(
             localizedName: localizedName,
             deviceID: deviceID,
-            legacyDeviceID: deviceID.uuidString,
+            legacyDeviceID: kDeviceUID,
             source: self)
 
         CMVideoFormatDescriptionCreate(
