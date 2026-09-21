@@ -79,6 +79,62 @@ class MainFlutterWindow: NSWindow {
       }
     }
 
+    // Virtual microphone: install channel, mirrors beamcam/extension above.
+    let audioDriverChannel = FlutterMethodChannel(
+      name: "beamcam/audiodriver",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+
+    AudioDriverInstaller.shared.observe { status in
+      audioDriverChannel.invokeMethod("status", arguments: status)
+    }
+
+    audioDriverChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "install":
+        AudioDriverInstaller.shared.install()
+        result(nil)
+      case "uninstall":
+        AudioDriverInstaller.shared.uninstall()
+        result(nil)
+      case "status":
+        result(AudioDriverInstaller.shared.currentStatus())
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    // Audio frame bridge: WebRTC remote audio track -> shared-memory ring ->
+    // BeamCamAudioPlugIn. Mirrors beamcam/sink above but is an entirely
+    // independent pipeline: video and audio can each be live without the
+    // other (see receiver_page.dart's independent hasVideo/hasAudio).
+    let audioSinkChannel = FlutterMethodChannel(
+      name: "beamcam/audiosink",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+
+    WebRTCAudioBridge.shared.onStatusChange = { status in
+      DispatchQueue.main.async { audioSinkChannel.invokeMethod("status", arguments: status) }
+    }
+
+    audioSinkChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "startAudioSink":
+        let args = call.arguments as? [String: Any]
+        guard let trackId = args?["trackId"] as? String, !trackId.isEmpty else {
+          result(FlutterError(
+            code: "bad-args", message: "startAudioSink needs a trackId", details: nil))
+          return
+        }
+        result(WebRTCAudioBridge.shared.start(trackId: trackId))
+      case "stopAudioSink":
+        WebRTCAudioBridge.shared.stop()
+        result(nil)
+      case "status":
+        result(WebRTCAudioBridge.shared.statusText)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     SystemExtensionInstaller.shared.install()
     WebRTCFrameBridge.shared.prepare()
 

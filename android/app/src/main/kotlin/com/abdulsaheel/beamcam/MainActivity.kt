@@ -17,7 +17,9 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "startBackground" -> {
-                        BeamCamService.start(this)
+                        val video = call.argument<Boolean>("video") ?: true
+                        val audio = call.argument<Boolean>("audio") ?: false
+                        BeamCamService.start(this, video = video, audio = audio)
                         result.success(true)
                     }
                     "stopBackground" -> {

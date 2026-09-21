@@ -23,9 +23,19 @@ class BeamCamService : Service() {
     companion object {
         const val CHANNEL_ID = "beamcam_streaming"
         const val NOTIFICATION_ID = 0xBEA3
+        private const val EXTRA_VIDEO = "video"
+        private const val EXTRA_AUDIO = "audio"
 
-        fun start(context: android.content.Context) {
-            val intent = Intent(context, BeamCamService::class.java)
+        // Android 14+ requires every foreground-service type actually in use
+        // to be declared both in the manifest and passed to startForeground;
+        // audio can now run independently of video (see sender_page.dart's
+        // _videoEnabled/_audioEnabled), so the type has to reflect whichever
+        // track(s) are actually live rather than always claiming camera.
+        fun start(context: android.content.Context, video: Boolean = true, audio: Boolean = false) {
+            val intent = Intent(context, BeamCamService::class.java).apply {
+                putExtra(EXTRA_VIDEO, video)
+                putExtra(EXTRA_AUDIO, audio)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -45,13 +55,16 @@ class BeamCamService : Service() {
         val notification = buildNotification()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // From Android 10 the type must be declared for camera access to
-            // survive backgrounding; from 14 it must also be passed here.
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
-            )
+            // From Android 10 the type must be declared for camera/mic access
+            // to survive backgrounding; from 14 it must also be passed here,
+            // matching whichever track(s) this session actually has enabled.
+            val video = intent?.getBooleanExtra(EXTRA_VIDEO, true) ?: true
+            val audio = intent?.getBooleanExtra(EXTRA_AUDIO, false) ?: false
+            var type = 0
+            if (video) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            if (audio) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            if (type == 0) type = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            startForeground(NOTIFICATION_ID, notification, type)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }

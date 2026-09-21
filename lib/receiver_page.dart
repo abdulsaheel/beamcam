@@ -15,8 +15,19 @@ import 'signaling.dart';
 /// Bridge to the native side that installs and reports on the camera extension.
 const _extensionChannel = MethodChannel('beamcam/extension');
 
+/// Bridge to the native side that installs and reports on the virtual
+/// microphone driver. Separate install lifecycle from the camera extension:
+/// a HAL driver copy + coreaudiod restart, not an OSSystemExtensionRequest.
+const _audioDriverChannel = MethodChannel('beamcam/audiodriver');
+
 /// Bridge that pumps the remote track's frames into the extension's sink stream.
 const _sinkChannel = MethodChannel('beamcam/sink');
+
+/// Bridge that pumps the remote audio track's PCM into the virtual mic driver.
+/// Separate channel from `beamcam/sink`: video and audio are two independent
+/// pipelines (extension vs. HAL driver) that can each be live without the
+/// other, so they get their own start/stop/status rather than overloading one.
+const _audioSinkChannel = MethodChannel('beamcam/audiosink');
 
 class ReceiverPage extends StatefulWidget {
   const ReceiverPage({super.key});
@@ -34,8 +45,15 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
   String _status = 'Starting…';
   bool _hasVideo = false;
+  bool _hasAudio = false;
   String _extensionStatus = 'idle';
   String _sinkStatus = 'idle';
+  String _audioSinkStatus = 'idle';
+  String _audioDriverStatus = 'idle';
+
+  bool get _hasMedia => _hasVideo || _hasAudio;
+
+  bool get _audioDriverReady => _audioDriverStatus.startsWith('installed');
 
   /// Off by default: the native bridge feeds the extension directly, so
   /// rendering a second copy costs GPU for nothing.
@@ -55,8 +73,24 @@ class _ReceiverPageState extends State<ReceiverPage> {
   void initState() {
     super.initState();
     _extensionChannelSetup();
+    _audioDriverChannelSetup();
     _sinkChannelSetup();
     _boot();
+  }
+
+  void _audioDriverChannelSetup() {
+    _audioDriverChannel.setMethodCallHandler((call) async {
+      if (call.method == 'status' && mounted) {
+        setState(() => _audioDriverStatus = call.arguments as String);
+      }
+      return null;
+    });
+    _audioDriverChannel
+        .invokeMethod<String>('status')
+        .then((s) {
+          if (s != null && mounted) setState(() => _audioDriverStatus = s);
+        })
+        .catchError((_) {});
   }
 
   void _sinkChannelSetup() {
@@ -66,6 +100,36 @@ class _ReceiverPageState extends State<ReceiverPage> {
       }
       return null;
     });
+    _audioSinkChannel.setMethodCallHandler((call) async {
+      if (call.method == 'status' && mounted) {
+        setState(() => _audioSinkStatus = call.arguments as String);
+      }
+      return null;
+    });
+  }
+
+  /// Same retry shape as _startSink: the plugin registers the remote track
+  /// slightly after Dart sees onTrack.
+  Future<void> _startAudioSink(String trackId) async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      try {
+        final ok = await _audioSinkChannel.invokeMethod<bool>('startAudioSink', {
+          'trackId': trackId,
+        });
+        if (ok ?? false) return;
+      } on PlatformException catch (e) {
+        if (mounted) setState(() => _audioSinkStatus = 'error: ${e.message}');
+        return;
+      } on MissingPluginException {
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    if (mounted) setState(() => _audioSinkStatus = 'track not found');
+  }
+
+  void _stopAudioSink() {
+    _audioSinkChannel.invokeMethod('stopAudioSink').catchError((_) {});
   }
 
   /// The plugin registers a remote track slightly after Dart sees onTrack, so
@@ -241,11 +305,16 @@ class _ReceiverPageState extends State<ReceiverPage> {
     };
 
     pc.onTrack = (event) {
-      if (event.track.kind != 'video' || event.streams.isEmpty) return;
-      _remoteStream = event.streams.first;
-      if (_showPreview) _renderer.srcObject = _remoteStream;
-      if (mounted) setState(() => _hasVideo = true);
-      _startSink(event.track.id!);
+      if (event.streams.isEmpty) return;
+      if (event.track.kind == 'video') {
+        _remoteStream = event.streams.first;
+        if (_showPreview) _renderer.srcObject = _remoteStream;
+        if (mounted) setState(() => _hasVideo = true);
+        _startSink(event.track.id!);
+      } else if (event.track.kind == 'audio') {
+        if (mounted) setState(() => _hasAudio = true);
+        _startAudioSink(event.track.id!);
+      }
     };
 
     pc.onConnectionState = (s) {
@@ -258,6 +327,14 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
     await pc.addTransceiver(
       kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+      init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
+    );
+    // Negotiated unconditionally, independent of the video transceiver above:
+    // the phone may connect with camera only, mic only, or both. An unused
+    // RecvOnly transceiver costs nothing; onTrack only fires — and only then
+    // does the audio sink start — once a real track shows up on it.
+    await pc.addTransceiver(
+      kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
       init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
     );
 
@@ -277,13 +354,14 @@ class _ReceiverPageState extends State<ReceiverPage> {
 
   void _dropPeer() {
     _stopSink();
+    _stopAudioSink();
     _remoteStream = null;
     _socket?.close();
     _socket = null;
     _pc?.close();
     _pc = null;
     _renderer.srcObject = null;
-    if (mounted) setState(() => _hasVideo = false);
+    if (mounted) setState(() { _hasVideo = false; _hasAudio = false; });
   }
 
   @override
@@ -332,7 +410,7 @@ class _ReceiverPageState extends State<ReceiverPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _hasVideo ? _liveBody(context) : _waitingBody(context),
+      body: _hasMedia ? _liveBody(context) : _waitingBody(context),
     );
   }
 
@@ -394,12 +472,22 @@ class _ReceiverPageState extends State<ReceiverPage> {
                         'FaceTime, your browser.',
                       ),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    ListTile(
-                      leading: const Icon(Icons.cable),
-                      title: const Text('Virtual camera'),
-                      subtitle: Text(_sinkStatus),
-                    ),
+                    if (_hasVideo) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.cable),
+                        title: const Text('Virtual camera'),
+                        subtitle: Text(_sinkStatus),
+                      ),
+                    ],
+                    if (_hasAudio) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      ListTile(
+                        leading: const Icon(Icons.mic_outlined),
+                        title: const Text('Virtual microphone'),
+                        subtitle: Text(_audioSinkStatus),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -421,33 +509,114 @@ class _ReceiverPageState extends State<ReceiverPage> {
             children: [
               _PairingCard(payload: _payload, status: _status),
               const SizedBox(height: 20),
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.videocam_outlined),
-                      title: const Text('Virtual camera'),
-                      subtitle: Text(_extensionStatus),
-                    ),
-                    if (!_extensionReady)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FilledButton.tonal(
-                            onPressed: () =>
-                                _extensionChannel.invokeMethod('install'),
-                            child: const Text('Install virtual camera'),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              _InstallCard(
+                icon: Icons.videocam_outlined,
+                title: 'Virtual camera',
+                explanation:
+                    'Required so your phone shows up as a camera in Zoom, '
+                    'Meet, and other apps.',
+                ready: _extensionReady,
+                status: _extensionStatus,
+                buttonLabel: 'Install virtual camera',
+                onInstall: () => _extensionChannel.invokeMethod('install'),
+              ),
+              const SizedBox(height: 16),
+              _InstallCard(
+                icon: Icons.mic_none_outlined,
+                title: 'Virtual microphone',
+                explanation:
+                    'Required so your phone\'s mic shows up as a microphone '
+                    'in Zoom, Discord, and other apps. Needs your Mac '
+                    'password once to install.',
+                ready: _audioDriverReady,
+                status: _audioDriverStatus,
+                buttonLabel: 'Install virtual microphone',
+                onInstall: () => _audioDriverChannel.invokeMethod('install'),
               ),
               const SizedBox(height: 28),
               const AboutFooter(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A required-setup step: what it's for, whether it's done, and a button to
+/// do it when it isn't — so it's obvious this has to happen before the
+/// virtual camera/mic will actually show up anywhere else on the Mac.
+class _InstallCard extends StatelessWidget {
+  const _InstallCard({
+    required this.icon,
+    required this.title,
+    required this.explanation,
+    required this.ready,
+    required this.status,
+    required this.buttonLabel,
+    required this.onInstall,
+  });
+
+  final IconData icon;
+  final String title;
+  final String explanation;
+  final bool ready;
+  final String status;
+  final String buttonLabel;
+  final VoidCallback onInstall;
+
+  /// Raw statuses ("idle", "requesting admin authorization…", "error: …")
+  /// are developer-facing; only surface the ones that tell the user
+  /// something is actively happening or went wrong.
+  String? get _statusLine {
+    if (ready) return null;
+    if (status == 'idle') return null;
+    return status;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+                ),
+                if (ready)
+                  const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                else
+                  Icon(Icons.error_outline,
+                      color: Theme.of(context).colorScheme.error, size: 20),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(explanation, style: Theme.of(context).textTheme.bodySmall),
+            if (_statusLine case final line?) ...[
+              const SizedBox(height: 4),
+              Text(line,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontStyle: FontStyle.italic)),
+            ],
+            if (!ready) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.tonal(
+                  onPressed: onInstall,
+                  child: Text(buttonLabel),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
