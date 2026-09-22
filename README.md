@@ -97,7 +97,7 @@ gathering latency.
 - [ ] **iOS sender.** Worth a lot against a Windows receiver.
 - [ ] **Windows receiver.** Needs a Media Foundation camera; CoreMediaIO is Apple-only.
 - [ ] **More quality options.** 1440p, and a manual bitrate override.
-- [ ] **Microphone relaying.** Needs a virtual audio device, separate from the camera.
+- [x] **Microphone relaying.** Needs a virtual audio device, separate from the camera.
 
 ## License
 
