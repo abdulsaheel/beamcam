@@ -66,7 +66,7 @@ class MainFlutterWindow: NSWindow {
         // Handed to the extension through the shared app group so its
         // placeholder can render the pairing code.
         let uri = (call.arguments as? [String: Any])?["uri"] as? String ?? ""
-        UserDefaults(suiteName: "2U62X3RF3R.com.abdulsaheel.beamcam")?
+        UserDefaults(suiteName: "group.2U62X3RF3R.com.abdulsaheel.beamcam")?
           .set(uri, forKey: "pairing")
         result(nil)
       case "stopSink":

@@ -9,6 +9,19 @@ final class SystemExtensionInstaller: NSObject {
 
     static let extensionIdentifier = "com.abdulsaheel.beamcam.CameraExtension"
 
+    private static let lastActivatedVersionKey = "SystemExtensionInstaller.lastActivatedVersion"
+
+    /// CFBundleVersion of the extension bundled inside this app build. Compared
+    /// against the version we last successfully activated so install() can skip
+    /// a redundant activationRequest.
+    private var bundledExtensionVersion: String? {
+        let plistURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/SystemExtensions")
+            .appendingPathComponent("\(Self.extensionIdentifier).systemextension")
+            .appendingPathComponent("Contents/Info.plist")
+        return (NSDictionary(contentsOf: plistURL))?["CFBundleVersion"] as? String
+    }
+
     /// Latest human-readable state, surfaced to Dart over the method channel.
     private(set) var status: String = "idle"
 
@@ -31,6 +44,18 @@ final class SystemExtensionInstaller: NSObject {
             return
         }
 
+        // ponytail: activationRequest restages the extension (new /Library/SystemExtensions
+        // UUID, old one left "waiting to uninstall on reboot") even when the bundle is
+        // byte-identical to what's already active — and the DAL won't register the device
+        // while a duplicate is pending. Skip the call once this exact version already went
+        // through .completed. Upgrade path: if a future macOS makes activationRequest a true
+        // no-op again, this whole guard can go.
+        if let version = bundledExtensionVersion,
+           UserDefaults.standard.string(forKey: Self.lastActivatedVersionKey) == version {
+            set("already installed (version \(version))")
+            return
+        }
+
         set("requesting activation…")
         let request = OSSystemExtensionRequest.activationRequest(
             forExtensionWithIdentifier: Self.extensionIdentifier,
@@ -40,6 +65,7 @@ final class SystemExtensionInstaller: NSObject {
     }
 
     func uninstall() {
+        UserDefaults.standard.removeObject(forKey: Self.lastActivatedVersionKey)
         set("requesting deactivation…")
         let request = OSSystemExtensionRequest.deactivationRequest(
             forExtensionWithIdentifier: Self.extensionIdentifier,
@@ -71,6 +97,9 @@ extension SystemExtensionInstaller: OSSystemExtensionRequestDelegate {
     ) {
         switch result {
         case .completed:
+            if let version = bundledExtensionVersion {
+                UserDefaults.standard.set(version, forKey: Self.lastActivatedVersionKey)
+            }
             set("installed")
         case .willCompleteAfterReboot:
             set("installed — reboot required before the camera appears")
