@@ -13,7 +13,7 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>$(TeamIdentifierPrefix)com.abdulsaheel.beamcam</string>
+		<string>group.$(TeamIdentifierPrefix)com.abdulsaheel.beamcam</string>
 	</array>
 </dict>
 </plist>

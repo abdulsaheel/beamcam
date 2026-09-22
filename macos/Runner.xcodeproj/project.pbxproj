@@ -24,7 +24,6 @@
 		039B68FCF5A40226FE523835 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CBA825856FF50FAE17FFC99 /* Foundation.framework */; };
 		0AF8ED1702DD5AA0A1212E39 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 716E64E0AED1840D485C848B /* CoreMedia.framework */; };
 		11E42FB501C3807645FBFAF4 /* AudioDriverInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC9F503CCA0CAEF3BDF6B3EF /* AudioDriverInstaller.swift */; };
-		2185900FECC55527D4E65D58 /* BeamCamAudioPlugIn.c in Sources */ = {isa = PBXBuildFile; fileRef = 5F14C395CD4A149C5907C34F /* BeamCamAudioPlugIn.c */; };
 		22B7C6976063D29163462CE3 /* BeamCamAudioRing.h in Headers */ = {isa = PBXBuildFile; fileRef = 7F8BD417862363FFD5AAD2D0 /* BeamCamAudioRing.h */; };
 		30567F828663A776A3BC457A /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B215993B33338803B6F75FFC /* Pods_RunnerTests.framework */; };
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
@@ -39,16 +38,13 @@
 		54B5306B719AEC181A7CFE16 /* BeamCamProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A76B712284CA6895D3F3DDB /* BeamCamProvider.swift */; };
 		69DCD00640511110456A97DE /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D530635D4F6BBF3D367FE8C /* Cocoa.framework */; };
 		6CAF88FB72DF7BFC6EBC878A /* WebRTCFrameBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7405EF2B2D39602FBAC06D60 /* WebRTCFrameBridge.swift */; };
-		6E308D06F4EE076C400B231E /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5DF5BE694B1792F1F151C0E /* CoreFoundation.framework */; };
 		6E33F72CB0D158F8027E7BEC /* AudioRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67BC3B4BEDDAF3215F12E06F /* AudioRingBuffer.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		7E4484503517ED7DF0CF1838 /* CoreMediaIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 538098759D3F67A0058D3BF2 /* CoreMediaIO.framework */; };
-		843C75E6E27EBF26CBBE658D /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 575FD6C4F3A0A2E4C1B41B69 /* CoreAudio.framework */; };
 		882D4EC0A13EBE973641B2DE /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC2388494B507E116D6A81EB /* Pods_Runner.framework */; };
 		9DC39D540BD06E9B9C0DB81A /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAF79E932976EED8B1A4CFCC /* CoreVideo.framework */; };
 		BDDE72F98E7FC9D3DE15515F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D9B12BDBD2F077919C9CA95B /* CoreFoundation.framework */; };
 		CC0483EFD707362972C5352D /* com.abdulsaheel.beamcam.CameraExtension.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = F6A070337BF67736CB8279CD /* com.abdulsaheel.beamcam.CameraExtension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		CD39D875CDE97EE223B67261 /* BeamCamAudioRing.h in Headers */ = {isa = PBXBuildFile; fileRef = A0597850519BFAB233386DA8 /* BeamCamAudioRing.h */; };
 		CEF5A461135268FF1B5B69F1 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318FB6C5E54E14509DDB92D3 /* main.swift */; };
 		EB7CC3F817DE42E2E24B3FA8 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 057A50FCD00CDEB85408B79E /* CoreAudio.framework */; };
 		EBEBDD0F5D052609879DBBFF /* CMIOSinkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09972511635490B32496616 /* CMIOSinkClient.swift */; };
@@ -149,7 +145,6 @@
 		4D1770B1497266D2450FF544 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		538098759D3F67A0058D3BF2 /* CoreMediaIO.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMediaIO.framework; path = System/Library/Frameworks/CoreMediaIO.framework; sourceTree = SDKROOT; };
 		575FD6C4F3A0A2E4C1B41B69 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
-		5F14C395CD4A149C5907C34F /* BeamCamAudioPlugIn.c */ = {isa = PBXFileReference; includeInIndex = 1; path = BeamCamAudioPlugIn.c; sourceTree = "<group>"; };
 		67BC3B4BEDDAF3215F12E06F /* AudioRingBuffer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioRingBuffer.swift; sourceTree = "<group>"; };
 		6CBA825856FF50FAE17FFC99 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		716E64E0AED1840D485C848B /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
@@ -160,13 +155,12 @@
 		7F8BD417862363FFD5AAD2D0 /* BeamCamAudioRing.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = BeamCamAudioRing.h; sourceTree = "<group>"; };
 		966AEC34E413198E973FC42C /* CameraExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = CameraExtension.entitlements; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
-		A0597850519BFAB233386DA8 /* BeamCamAudioRing.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = BeamCamAudioRing.h; sourceTree = "<group>"; };
 		A5DF5BE694B1792F1F151C0E /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		A89175231D0C0C90AA5F447A /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		AB7322E28D41B80BE8978F39 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		ABDC266B9ABD2482F8C04616 /* AudioDriver.driver */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AudioDriver.driver; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC2388494B507E116D6A81EB /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		ACD5E6EB7087922C201DB08A /* BeamCamAudioPlugIn.c */ = {isa = PBXFileReference; includeInIndex = 1; path = BeamCamAudioPlugIn.c; sourceTree = "<group>"; };
+		ACD5E6EB7087922C201DB08A /* BeamCamAudioPlugIn.c */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.c; path = BeamCamAudioPlugIn.c; sourceTree = "<group>"; };
 		B215993B33338803B6F75FFC /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC8B4CA1C026501911B786AB /* SystemExtensionInstaller.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemExtensionInstaller.swift; sourceTree = "<group>"; };
 		BC9F503CCA0CAEF3BDF6B3EF /* AudioDriverInstaller.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioDriverInstaller.swift; sourceTree = "<group>"; };
@@ -233,7 +227,6 @@
 				7F8BD417862363FFD5AAD2D0 /* BeamCamAudioRing.h */,
 				1A5FF5440E4FF5D12A0B29AD /* Info.plist */,
 			);
-			name = AudioDriver;
 			path = AudioDriver;
 			sourceTree = "<group>";
 		};
@@ -336,7 +329,6 @@
 				A89175231D0C0C90AA5F447A /* Pods-RunnerTests.release.xcconfig */,
 				ED29F58A948C18BECA233E07 /* Pods-RunnerTests.profile.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -348,7 +340,6 @@
 				4D1770B1497266D2450FF544 /* Info.plist */,
 				966AEC34E413198E973FC42C /* CameraExtension.entitlements */,
 			);
-			name = CameraExtension;
 			path = CameraExtension;
 			sourceTree = "<group>";
 		};
@@ -783,37 +774,6 @@
 			};
 			name = Profile;
 		};
-		178AA50CCF302BD3891220F5 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 2U62X3RF3R;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = AudioDriver/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@loader_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					CoreAudio,
-					"-framework",
-					CoreFoundation,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.AudioDriver;
-				PRODUCT_NAME = AudioDriver;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
-				WRAPPER_EXTENSION = driver;
-			};
-			name = Release;
-		};
 		331C80DB294CF71000263BE5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3E4DE24D2E3248EC226222B0 /* Pods-RunnerTests.debug.xcconfig */;
@@ -1130,42 +1090,12 @@
 			};
 			name = Release;
 		};
-		4FA76578B05681E01E3BB22C /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 2U62X3RF3R;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = AudioDriver/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@loader_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					CoreAudio,
-					"-framework",
-					CoreFoundation,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.AudioDriver;
-				PRODUCT_NAME = AudioDriver;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
-				WRAPPER_EXTENSION = driver;
-			};
-			name = Profile;
-		};
 		63F7BB0E2D444991C4972D5F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = CameraExtension/CameraExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2U62X3RF3R;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1176,46 +1106,23 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				// ponytail: reset — the project-level Release.xcconfig cascades
+				// Pods-Runner.release.xcconfig via Flutter-Release.xcconfig, which
+				// links the whole Flutter/WebRTC dependency graph into this target
+				// (none of it is imported by CameraExtension source). Without this
+				// reset the extension crashes at launch: WebRTC.framework isn't
+				// embedded in its own bundle, so dyld aborts before main() runs.
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.CameraExtension;
 				PRODUCT_MODULE_NAME = CameraExtension;
 				PRODUCT_NAME = com.abdulsaheel.beamcam.CameraExtension;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
-		};
-		6648BF913170106BDD44BAC8 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 2U62X3RF3R;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = AudioDriver/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@loader_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					CoreAudio,
-					"-framework",
-					CoreFoundation,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.AudioDriver;
-				PRODUCT_NAME = AudioDriver;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
-				WRAPPER_EXTENSION = driver;
-			};
-			name = Debug;
 		};
 		AB52901FFA0665A41E377F0C /* Profile */ = {
 			isa = XCBuildConfiguration;
@@ -1232,6 +1139,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.CameraExtension;
 				PRODUCT_MODULE_NAME = CameraExtension;
 				PRODUCT_NAME = com.abdulsaheel.beamcam.CameraExtension;
@@ -1289,6 +1197,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.abdulsaheel.beamcam.CameraExtension;
 				PRODUCT_MODULE_NAME = CameraExtension;
 				PRODUCT_NAME = com.abdulsaheel.beamcam.CameraExtension;

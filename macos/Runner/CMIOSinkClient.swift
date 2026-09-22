@@ -9,7 +9,7 @@ enum BeamCamLog {
 
     private static let url: URL = {
         let base = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "2U62X3RF3R.com.abdulsaheel.beamcam")
+            forSecurityApplicationGroupIdentifier: "group.2U62X3RF3R.com.abdulsaheel.beamcam")
             ?? FileManager.default.temporaryDirectory
         return base.appendingPathComponent("beamcam-extension.log")
     }()

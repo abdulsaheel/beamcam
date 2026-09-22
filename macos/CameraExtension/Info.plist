@@ -19,7 +19,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.8</string>
 	<key>CFBundleVersion</key>
-	<string>11</string>
+	<string>16</string>
 	<key>CFBundleDisplayName</key>
 	<string>BeamCam Virtual Camera</string>
 	<key>CMIOExtension</key>
@@ -29,7 +29,7 @@
 		     the extension's app groups including the trailing dot, so a dotted
 		     child of the group is safer than being exactly equal to it. -->
 		<key>CMIOExtensionMachServiceName</key>
-		<string>$(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<string>group.$(TeamIdentifierPrefix)com.abdulsaheel.beamcam.CameraExtension</string>
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>BeamCam publishes a virtual camera fed by your phone.</string>
