@@ -6,7 +6,7 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.2U62X3RF3R.com.abdulsaheel.beamcam</string>
+		<string>group.$(TeamIdentifierPrefix)com.abdulsaheel.beamcam</string>
 	</array>
 	<key>com.apple.security.device.camera</key>
 	<true/>
